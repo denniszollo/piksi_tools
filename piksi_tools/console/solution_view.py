@@ -297,6 +297,7 @@ class SolutionView(HasTraits):
 
     self.log_file = None
     self.vel_log_file = None
+    self.directory = directory
 
     self.plot_data = ArrayPlotData(lat=[], lng=[], alt=[], t=[],
       cur_lat=[], cur_lng=[], cur_lat_ps=[], cur_lng_ps=[],
