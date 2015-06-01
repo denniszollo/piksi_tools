@@ -41,6 +41,14 @@ class Baseline:
     self.n_sats = soln[6]
 
 class BaselineView(HasTraits):
+  """
+  View to show baslines in table and plot
+
+  Parameters
+  ----------
+  link : handle to data source
+  directory : location to store temp files on this view
+  """
   python_console_cmds = Dict()
 
   ns = List()

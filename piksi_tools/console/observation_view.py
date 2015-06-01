@@ -47,6 +47,16 @@ class Observation:
 
 
 class ObservationView(HasTraits):
+  """
+  View to show observations in a table
+
+  Parameters
+  ----------
+  link : handle to data source
+  name : prefix to rinex file saved name
+  relay : boolean on whether to relay observations
+  directory : location to store temp files on this view
+    """
   python_console_cmds = Dict()
 
   _obs_table_list = List()

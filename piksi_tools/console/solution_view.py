@@ -32,6 +32,14 @@ class SimpleAdapter(TabularAdapter):
   width = 80
 
 class SolutionView(HasTraits):
+  """
+  View to show solutions
+
+  Parameters
+  ----------
+  link : handle to data source
+  directory : location to store temp files on this view
+  """
   python_console_cmds = Dict()
   # we need to doubleup on Lists to store the psuedo absolutes separately
   # without rewriting everything
