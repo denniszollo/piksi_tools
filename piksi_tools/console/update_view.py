@@ -13,6 +13,7 @@ from urllib2 import URLError
 from json import load as jsonload
 from time import sleep
 from intelhex import IntelHex, HexRecordError, HexReaderError
+from tempfile import gettempdir
 from pkg_resources import parse_version
 
 from sbp.bootload import SBP_MSG_BOOTLOADER_JUMP_TO_APP
@@ -229,7 +230,7 @@ class UpdateView(HasTraits):
     )
   )
 
-  def __init__(self, link, prompt=True):
+  def __init__(self, link, prompt=True, directory=None):
     """
     Traits tab with UI for updating Piksi firmware.
 
@@ -239,6 +240,8 @@ class UpdateView(HasTraits):
       Link for SBP transfer to/from Piksi.
     prompt : bool
       Prompt user to update console/firmware if out of date.
+    directory : string
+      User specified directory to store downloaded files on this view
     """
     self.link = link
     self.settings = {}
@@ -248,6 +251,10 @@ class UpdateView(HasTraits):
 
     }
     self.update_dl = None
+    if directory:
+      self.tempdir=directory
+    else:
+      self.tempdir = gettempdir()
     self.stm_fw = IntelHexFileDialog('STM')
     self.stm_fw.on_trait_change(self._manage_enables, 'status')
     self.nap_fw = IntelHexFileDialog('M25')
@@ -483,7 +490,7 @@ class UpdateView(HasTraits):
   def _get_latest_version_info(self):
     """ Get latest firmware / console version from website. """
     try:
-      self.update_dl = UpdateDownloader()
+      self.update_dl = UpdateDownloader(self.tempdir)
     except URLError:
       self._write("\nError: Failed to download latest file index from Swift Navigation's website. Please visit our website to check that you're running the latest Piksi firmware and Piksi console.\n")
       return

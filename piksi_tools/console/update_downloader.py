@@ -18,9 +18,11 @@ INDEX_URL = 'http://downloads.swiftnav.com/index.json'
 
 class UpdateDownloader:
 
-  def __init__(self):
+  def __init__(self, tempdir=None):
     f = urlopen(INDEX_URL)
     self.index = jsonload(f)
+    self.tempdir = tempdir
+    print self.tempdir
     f.close()
 
   def download_stm_firmware(self):
@@ -46,13 +48,14 @@ class UpdateDownloader:
   def _download_file_from_url(self, url):
     url = url.encode('ascii')
     urlpath = urlparse(url).path
-    filename = os.path.split(urlparse(url).path)[1]
-
+    filepath = os.path.split(urlparse(url).path)[1]
+    if self.tempdir:
+      filepath = os.path.join(self.tempdir, filepath)
     url_file = urlopen(url)
     lines = url_file.readlines()
-    with open(filename, 'w') as f:
+    with open(filepath, 'w') as f:
       for line in lines:
         f.write(line)
     url_file.close()
 
-    return os.path.abspath(filename)
+    return os.path.abspath(filepath)
