@@ -179,7 +179,10 @@ class BaselineView(HasTraits):
       table.append(('GPS Week', str(self.week)))
 
       if self.log_file is None:
-        self.log_file = open(time.strftime("baseline_log_%Y%m%d-%H%M%S.csv"), 'w')
+        filename = time.strftime("position_log_%Y%m%d-%H%M%S.csv")
+        if self.directory:
+          filename = os.path.join(self.directory, filname )
+        self.log_file = open(filename, 'w')
         self.log_file.write('time,north(meters),east(meters),down(meters),distance(meters),num_sats,flags,num_hypothesis')
 
       self.log_file.write('%s,%.4f,%.4f,%.4f,%.4f,%d,0x%02x,%d\n' % (
@@ -234,10 +237,11 @@ class BaselineView(HasTraits):
 
     self.table = table
 
-  def __init__(self, link):
+  def __init__(self, link, directory=None):
     super(BaselineView, self).__init__()
 
     self.log_file = None
+    self.directory = directory
 
     self.num_hyps = 0
 

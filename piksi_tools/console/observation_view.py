@@ -87,7 +87,10 @@ class ObservationView(HasTraits):
     if self.recording:
       if self.rinex_file is None:
         # If the file is being opened for the first time, write the RINEX header
-        self.rinex_file = open(self.name+self.t.strftime("-%Y%m%d-%H%M%S.obs"),  'w')
+        filename = self.name + self.t.strftime("-%Y%m%d-%H%M%S.obs")
+        if self.directory:
+          filename = os.path.join(self.directory, filname )
+        self.rinex_file = open(filename,  'w')
         header = """     2.11           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE
 pyNEX                                   %s UTC PGM / RUN BY / DATE
                                                             MARKER NAME
@@ -228,7 +231,7 @@ pyNEX                                   %s UTC PGM / RUN BY / DATE
       self.eph_file.flush()
 
 
-  def __init__(self, link, name='Rover', relay=False):
+  def __init__(self, link, name='Rover', relay=False, directory=None):
     super(ObservationView, self).__init__()
 
     self.obs_count = 0
@@ -246,7 +249,7 @@ pyNEX                                   %s UTC PGM / RUN BY / DATE
     self.link.add_callback(self.obs_packed_callback, SBP_MSG_OBS)
     self.link.add_callback(self.ephemeris_callback, SBP_MSG_EPHEMERIS)
     self.link.add_callback(self.ephemeris_callback, SBP_MSG_EPHEMERIS_OLD)
-
+    self.directory = directory
     self.python_console_cmds = {
       'obs': self
     }

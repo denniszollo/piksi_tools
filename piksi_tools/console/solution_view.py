@@ -155,7 +155,10 @@ class SolutionView(HasTraits):
     pos_table = []
 
     if self.log_file is None:
-      self.log_file = open(time.strftime("position_log_%Y%m%d-%H%M%S.csv"), 'w')
+      filename = time.strftime("position_log_%Y%m%d-%H%M%S.csv")
+      if self.directory:
+        filename = os.path.join(self.directory, filname )
+      self.log_file = open(filename, 'w')
       self.log_file.write("time,latitude(degrees),longitude(degrees),altitude(meters),n_sats,flags")
     tow = soln.tow * 1e-3
     if self.nsec is not None:
@@ -289,7 +292,7 @@ class SolutionView(HasTraits):
     self.week = MsgGPSTime(sbp_msg).wn
     self.nsec = MsgGPSTime(sbp_msg).ns
 
-  def __init__(self, link):
+  def __init__(self, link, directory=None):
     super(SolutionView, self).__init__()
 
     self.log_file = None
