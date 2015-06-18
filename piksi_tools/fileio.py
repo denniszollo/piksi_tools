@@ -10,11 +10,13 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 import struct
-import sys
 import serial_link
 import threading
 
 from sbp.file_io import *
+import sys
+from sbp.client.handler import Handler
+
 
 class FileIO(object):
   def __init__(self, link):
@@ -34,16 +36,26 @@ class FileIO(object):
     out : str
         Contents of the file.
     """
-    chunksize = 255 - 6 - len(filename)
+
     buf = ''
+    print len(buf)
+    filename='config'
+    len_diff=9-len(filename)
+    filename+="\0"*len_diff
+    chunksize = 255 - 6 - len(filename)
+    print chunksize
+    print len(filename)
     while True:
-      msg = struct.pack("<IB", len(buf), chunksize) + filename + '\0'
-      self.link.send(SBP_MSG_FILEIO_READ, msg)
-      data = self.link.wait(SBP_MSG_FILEIO_READ, timeout=1.0)
+      #msg = MsgFileioRead(offset=len(buf),
+                          #chunk_size=chunksize, filename=filename)
+      msg = struct.pack("<IB", len(buf), chunksize) + filename
+      self.link.send(SBP_MSG_FILEIO_READ, msg, 0)
+      data = self.link.wait(SBP_MSG_FILEIO_READ, timeout=5.0)
       if not data:
         raise Exception("Timeout waiting for FILEIO_READ reply")
       if data[:len(msg)] != msg:
         raise Exception("Reply FILEIO_READ doesn't match request")
+      print data
       chunk = data[len(msg):]
       buf += chunk
       if len(chunk) != chunksize:
