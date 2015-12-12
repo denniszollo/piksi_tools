@@ -31,7 +31,7 @@ class SimpleAdapter(TabularAdapter):
 
 class ObservationView(HasTraits):
   python_console_cmds = Dict()
-
+  sender_id = Str("Unknown")
   _obs_table_list = List()
   obs = Dict()
 
@@ -50,6 +50,7 @@ class ObservationView(HasTraits):
   def trait_view(self, view):
     return View(
       HGroup(
+        Item('sender_id', style = 'readonly'),
         Item('_obs_table_list', style = 'readonly', editor = TabularEditor(adapter=SimpleAdapter()), show_label=False),
         VGroup(
           Item('record_button', show_label=False),
@@ -116,7 +117,7 @@ pyNEX                                   %s UTC PGM / RUN BY / DATE
     if (sbp_msg.sender is not None and
         (self.relay ^ (sbp_msg.sender == 0))):
       return
-
+    self.sender_id = str(sbp_msg.sender)
     tow = sbp_msg.header.t.tow
     wn = sbp_msg.header.t.wn
     seq = sbp_msg.header.n_obs
