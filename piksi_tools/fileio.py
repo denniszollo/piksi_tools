@@ -9,16 +9,23 @@
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
-import struct
-import sys
 import serial_link
-import threading
+import random
+import array
 
 from sbp.file_io import *
+from sbp.client import *
+
+MAX_PAYLOAD_SIZE = 255
 
 class FileIO(object):
   def __init__(self, link):
     self.link = link
+    self._seq = random.randint(0, 0xffffffff)
+
+  def next_seq(self):
+    self._seq += 1
+    return self._seq
 
   def read(self, filename):
     """
@@ -34,20 +41,26 @@ class FileIO(object):
     out : str
         Contents of the file.
     """
-    chunksize = 255 - 6 - len(filename)
-    buf = ''
+    chunksize = MAX_PAYLOAD_SIZE
+    seq = self.next_seq()
+    buf = []
     while True:
-      msg = struct.pack("<IB", len(buf), chunksize) + filename + '\0'
-      self.link.send(SBP_MSG_FILEIO_READ, msg)
-      data = self.link.wait(SBP_MSG_FILEIO_READ, timeout=1.0)
-      if not data:
+      msg = MsgFileioReadReq(sequence=seq,
+                             offset=len(buf),
+                             chunk_size=chunksize,
+                             filename=filename)
+      self.link(msg)
+      reply = self.link.wait(SBP_MSG_FILEIO_READ_RESP, timeout=1.0)
+      if not reply:
         raise Exception("Timeout waiting for FILEIO_READ reply")
-      if data[:len(msg)] != msg:
+      # Why isn't this already decoded?
+      reply = MsgFileioReadResp(reply)
+      if reply.sequence != seq:
         raise Exception("Reply FILEIO_READ doesn't match request")
-      chunk = data[len(msg):]
+      chunk = reply.contents
       buf += chunk
-      if len(chunk) != chunksize:
-        return buf
+      if len(chunk) == 0:
+        return bytearray(buf)
 
   def readdir(self, dirname='.'):
     """
@@ -64,18 +77,23 @@ class FileIO(object):
         List of file names.
     """
     files = []
+    seq = self.next_seq()
     while True:
-      msg = struct.pack("<I", len(files)) + dirname + '\0'
-      self.link.send(SBP_MSG_FILEIO_READ_DIR, msg)
-      data = self.link.wait(SBP_MSG_FILEIO_READ_DIR, timeout=1.0)
-      if not data:
+      msg = MsgFileioReadDirReq(sequence=seq,
+                                offset=len(files),
+                                dirname=dirname)
+      self.link(msg)
+      reply = self.link.wait(SBP_MSG_FILEIO_READ_DIR_RESP, timeout=1.0)
+      if not reply:
         raise Exception("Timeout waiting for FILEIO_READ_DIR reply")
-      if data[:len(msg)] != msg:
+      # Why isn't this already decoded?
+      reply = MsgFileioReadDirResp(reply)
+      if reply.sequence != seq:
         raise Exception("Reply FILEIO_READ_DIR doesn't match request")
-      chunk = data[len(msg):].split('\0')
-      files += chunk[:-1]
-      if chunk[-1] == '\xff':
+      chunk = str(bytearray(reply.contents)).rstrip('\0')
+      if len(chunk) == 0:
         return files
+      files += chunk.split('\0')
 
   def remove(self, filename):
     """
@@ -86,7 +104,8 @@ class FileIO(object):
     filename : str
         Name of the file to delete.
     """
-    self.link.send(SBP_MSG_FILEIO_REMOVE, filename + '\0')
+    msg = MsgFileioRemove(filename=filename)
+    self.link(msg)
 
   def write(self, filename, data, offset=0, trunc=True):
     """
@@ -113,16 +132,22 @@ class FileIO(object):
     """
     if trunc and offset == 0:
       self.remove(filename)
-    chunksize = 255 - len(filename) - 5
+    # How do we calculate this from the MsgFileioWriteRequest class?
+    chunksize = MAX_PAYLOAD_SIZE - len(filename) - 8
+    seq = self.next_seq()
     while data:
       chunk = data[:chunksize]
       data = data[chunksize:]
-      header = struct.pack("<I", offset) + filename + '\0'
-      self.link.send(SBP_MSG_FILEIO_WRITE, header + chunk)
-      reply = self.link.wait(SBP_MSG_FILEIO_WRITE, timeout=1.0)
+      msg = MsgFileioWriteReq(sequence=seq,
+                              filename=(filename + '\0' + chunk),
+                              offset=offset)
+      self.link(msg)
+      reply = self.link.wait(SBP_MSG_FILEIO_WRITE_RESP, timeout=1.0)
       if not reply:
         raise Exception("Timeout waiting for FILEIO_WRITE reply")
-      if reply != header:
+      # Why isn't this already decoded?
+      reply = MsgFileioWriteResp(reply)
+      if reply.sequence != seq:
         raise Exception("Reply FILEIO_WRITE doesn't match request")
       offset += len(chunk)
 
@@ -200,7 +225,7 @@ def main():
   # Driver with context
   with serial_link.get_driver(args.ftdi, port, baud) as driver:
     # Handler with context
-    with Handler(driver.read, driver.write, args.verbose) as link:
+    with Handler(Framer(driver.read, driver.write, args.verbose)) as link:
       f = FileIO(link)
 
       try:

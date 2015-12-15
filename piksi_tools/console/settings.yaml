@@ -63,6 +63,7 @@
 
 - group: float_kf
   name: phase_var
+  expert: true
   type: Double
   units: cycles^2
   default value: '0.0144'
@@ -76,6 +77,7 @@
 
 - group: float_kf
   name: code_var
+  expert: true
   type: Double
   units: meters^2
   default value: '40000'
@@ -89,9 +91,10 @@
 
 - group: float_kf
   name: amb_init_var
+  expert: true
   type: Double
   units: non dimensional
-  default value: '1.00E+08'
+  default value: '1.00E+25'
   enumerated possible values:
   Description: Initial integer ambiguity variance at filter initialization
   Notes: This setting adjusts variance estimates in the Swift Kalman filter which
@@ -102,9 +105,10 @@
 
 - group: float_kf
   name: new_amb_var
+  expert: true
   type: Double
   units: non dimensional
-  default value: '1.00E+10'
+  default value: '1.00E+25'
   enumerated possible values:
   Description: Variance for new ambiguity measurements
   Notes: This setting adjusts variance estimates in the Swift Kalman filter which
@@ -118,7 +122,7 @@
   type: enum
   units:
   default value: Auto
-  enumerated possible values: Auto,Patch,External
+  enumerated possible values: Auto,Patch,External,External (no bias)
   Description: Determines which antenna to use.
   Notes: This setting selects the antenna input that should be used by the Piksi.  When
     set to "Auto", if the unit senses an external antenna attached to the Piksi
@@ -130,6 +134,7 @@
 
 - group: iar
   name: phase_var
+  expert: true
   type: double
   units: cycles^2
   default value: '0.0144'
@@ -143,6 +148,7 @@
 
 - group: iar
   name: code_var
+  expert: true
   type: double
   units: meters^2
   default value: '40000'
@@ -158,7 +164,7 @@
   name: obs_msg_max_size
   type: integer
   units: bytes
-  default value: '104'
+  default value: '102'
   enumerated possible values:
   Description: Determines the maximum message length for raw observation sbp messages.
   Notes: This parameter is useful for tuning observation messages for compatibility
@@ -337,6 +343,7 @@
 
 - group: solution
   name: dgnss_filter
+  expert: true
   type: enum
   units:
   default value: Fixed
@@ -375,6 +382,37 @@
   Description: Determines the baseline vector for the "init known baseline" feature.
   Notes: This sets the number of meters that the rover is Down from the
     base station when the "init known baseline" feature is used.
+
+- group: solution
+  name: elevation_mask
+  type: float
+  units: degrees
+  default value: '5'
+  enumerated possible values:
+  Description: SPP / RTK elevation mask
+  Notes: Satellites must be above the horizon by at least this angle before they
+    will be used in a solution.
+
+- group: solution
+  name: disable_raim
+  type: boolean
+  expert: true
+  units:
+  default value: False
+  enumerated possible values: True,False
+  Description: Receiver Autonomous Integrity Monitoring
+  Notes: If True, RAIM checks will not be performed.
+
+- group: solution
+  name: send_heading
+  type: boolean
+  expert: true
+  units:
+  default value: False
+  enumerated possible values: True,False
+  Description: Enables SBP heading output.  Heading is caculated from base station to 
+    rover and represents the inverse tangent of the north and east components of the baseline.
+  Notes: No smoothing or additional processing is provided to improve heading output.
 
 - group: system_info
   name: serial_number
@@ -541,7 +579,7 @@
   name: baudrate
   type: integer
   units: baud
-  default value: '115200'
+  default value: '57600'
   enumerated possible values:
   Description: The baudrate for the UART
   Notes: The radio baudrate may be constrained by the particular RF equipment used
@@ -597,3 +635,133 @@
     reporting the event, including a timestamp accurate to better than
     a microsecond.
     Requires NAP firmware >= 0.12.
+
+- group: track
+  name: iq_output_mask
+  expert: true
+  type: integer
+  units:
+  default value: 0
+  enumerated possible values:
+  Description: Output raw I/Q correlations
+  Notes: Bitmask of channel IDs (not PRNs)
+
+- group: track
+  name: cn0_drop
+  expert: true
+  type: Double
+  units: db-Hz
+  default value: '30'
+  Description: C/N0 threshold for tracking.
+  Notes: If the estimated C/N0 for a satellite drops below this for more than
+         5 seconds, the signal will be considered lost and the channel reset.
+
+- group: track
+  name: cn0_use
+  expert: true
+  type: Double
+  units: db-Hz
+  default value: '31'
+  Description: C/N0 threshold for navigation.
+  Notes: If the estimated C/N0 drops below this even momentarily,
+         the satellite will not be used for SPP or RTK solutions and
+         the integer ambiguity for that channel will be reinitialized.
+         This is in addition to PLL lock detection.
+
+- group: track
+  name: loop_params
+  expert: true
+  type: string
+  units:
+  default value: '(1 ms, (1, 0.7, 1, 1540), (10, 0.7, 1, 5)), (5 ms, (1, 0.7, 1, 1540), (50, 0.7, 1, 0))'
+  Description: Tracking loop filter parameters
+  Notes: "'<LOOP_PARAMS_STAGE1>[, <LOOP_PARAMS_STAGE2>]'
+
+
+    where <LOOP_PARAMS_STAGEn> =
+
+    (<COHERENT_MS> ms, (CODE_BW, CODE_ZETA, CODE_K, CARR_TO_CODE),
+
+                       (CARR_BW, CARR_ZETA, CARR_K, FLL_AID_GAIN))
+
+
+    LOOP_PARAMS_STAGE1 will be used until navigation bit synchronization
+    is achieved, after which LOOP_PARAMS_STAGE2 will be used.
+
+
+    COHERENT_MS must be a factor of 20, and must be 1 for LOOP_PARAMS_STAGE1.
+
+
+    CARR_TO_CODE should be 0 (carrier aiding disabled) or 1540 (ratio of
+    GPS L1 C/A carrier freq to code freq)."
+
+- group: track
+  name: lock_detect_params
+  expert: true
+  type: string
+  units:
+  default value: '0.02, 1.4, 150, 50'
+  Description: PLL lock detector parameters
+  Notes: "<k1>, <k2>, <lp>, <lo>
+
+
+    where
+
+      k1 = LPF coefficient (@ 1 ms)
+
+      k2 = I arm divisor
+
+      lp = Pessimistic lock count threshold
+
+      lo = Optimistic lock count threshold"
+
+- group: track
+  name: alias_detect
+  expert: true
+  type: boolean
+  units:
+  default value: 'True'
+  enumerated possible values: True,False
+  Description: Use phase-lock alias detection + correction
+  Notes:
+
+- group: nmea
+  name: gpgsv_msg_rate
+  type: integer
+  units: Ticks
+  default value: '10'
+  Description: Number of ticks between GPGSV NMEA messages being sent.
+  Notes:
+
+- group: nmea
+  name: gprmc_msg_rate
+  type: integer
+  units: Ticks
+  default value: '10'
+  Description: Number of ticks between GPRMC NMEA messages being sent.
+  Notes:
+
+- group: nmea
+  name: gpvtg_msg_rate
+  type: integer
+  units: Ticks
+  default value: '10'
+  Description: Number of ticks between GPVTG NMEA messages being sent.
+  Notes:
+
+- group: nmea
+  name: gpgll_msg_rate
+  type: integer
+  units: Ticks
+  default value: '10'
+  Description: Number of ticks between GPGLL NMEA messages being sent.
+  Notes:
+
+- group: pps
+  name: width
+  type: integer
+  units: microseconds
+  default value: '200000'
+  enumerated possible values:
+  Description: Number of microseconds the PPS will remain high (1-999999).
+  Notes:

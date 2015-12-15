@@ -17,8 +17,8 @@ from chaco.tools.api import ZoomTool, PanTool
 from enable.api import ComponentEditor
 from enable.savage.trait_defs.ui.svg_button import SVGButton
 from pyface.api import GUI
+from piksi_tools.console.utils import plot_square_axes, determine_path
 
-import struct
 import math
 import os
 import numpy as np
@@ -54,27 +54,28 @@ class SolutionView(HasTraits):
   # Store plots we care about for legend
 
   running = Bool(True)
+  zoomall = Bool(False)
   position_centered = Bool(False)
 
   clear_button = SVGButton(
     label='', tooltip='Clear',
-    filename=os.path.join(os.path.dirname(__file__), 'images', 'iconic', 'x.svg'),
+    filename=os.path.join(determine_path(), 'images', 'iconic', 'x.svg'),
     width=16, height=16
   )
   zoomall_button = SVGButton(
-    label='', tooltip='Zoom All',
-    filename=os.path.join(os.path.dirname(__file__), 'images', 'iconic', 'fullscreen.svg'),
+    label='', tooltip='Zoom All', toggle=True,
+    filename=os.path.join(determine_path(), 'images', 'iconic', 'fullscreen.svg'),
     width=16, height=16
   )
   center_button = SVGButton(
     label='', tooltip='Center on Solution', toggle=True,
-    filename=os.path.join(os.path.dirname(__file__), 'images', 'iconic', 'target.svg'),
+    filename=os.path.join(determine_path(), 'images', 'iconic', 'target.svg'),
     width=16, height=16
   )
   paused_button = SVGButton(
     label='', tooltip='Pause', toggle_tooltip='Run', toggle=True,
-    filename=os.path.join(os.path.dirname(__file__), 'images', 'iconic', 'pause.svg'),
-    toggle_filename=os.path.join(os.path.dirname(__file__), 'images', 'iconic', 'play.svg'),
+    filename=os.path.join(determine_path(), 'images', 'iconic', 'pause.svg'),
+    toggle_filename=os.path.join(determine_path(), 'images', 'iconic', 'play.svg'),
     width=16, height=16
   )
 
@@ -109,10 +110,7 @@ class SolutionView(HasTraits):
   )
 
   def _zoomall_button_fired(self):
-    self.plot.index_range.low_setting = 'auto'
-    self.plot.index_range.high_setting = 'auto'
-    self.plot.value_range.low_setting = 'auto'
-    self.plot.value_range.high_setting = 'auto'
+    self.zoomall = not self.zoomall
 
   def _center_button_fired(self):
     self.position_centered = not self.position_centered
@@ -136,7 +134,7 @@ class SolutionView(HasTraits):
     self.plot_data.set_data('alt_ps', [])
     self.plot_data.set_data('t_ps', [])
 
-  def _pos_llh_callback(self, sbp_msg):
+  def _pos_llh_callback(self, sbp_msg, **metadata):
     # Updating an ArrayPlotData isn't thread safe (see chaco issue #9), so
     # actually perform the update in the UI thread.
     if self.running:
@@ -145,7 +143,7 @@ class SolutionView(HasTraits):
   def update_table(self):
     self._table_list = self.table_spp.items()
 
-  def pos_llh_callback(self, sbp_msg):
+  def pos_llh_callback(self, sbp_msg, **metadata):
     soln = MsgPosLLH(sbp_msg)
     masked_flag = soln.flags & 0x7
     if masked_flag == 0:
@@ -156,7 +154,7 @@ class SolutionView(HasTraits):
 
     if self.log_file is None:
       self.log_file = open(time.strftime("position_log_%Y%m%d-%H%M%S.csv"), 'w')
-      self.log_file.write("time,latitude(degrees),longitude(degrees),altitude(meters),n_sats,flags")
+      self.log_file.write("time,latitude(degrees),longitude(degrees),altitude(meters),n_sats,flags\n")
     tow = soln.tow * 1e-3
     if self.nsec is not None:
       tow += self.nsec * 1e-9
@@ -241,9 +239,10 @@ class SolutionView(HasTraits):
         self.plot.index_range.set_bounds(soln.lon - d, soln.lon + d)
         d = (self.plot.value_range.high - self.plot.value_range.low) / 2.
         self.plot.value_range.set_bounds(soln.lat - d, soln.lat + d)
+    if self.zoomall:
+      plot_square_axes(self.plot, 'lng', 'lat')
 
-
-  def dops_callback(self, sbp_msg):
+  def dops_callback(self, sbp_msg, **metadata):
     dops = MsgDops(sbp_msg)
     self.dops_table = [
       ('PDOP', '%.1f' % (dops.pdop * 0.01)),
@@ -254,12 +253,12 @@ class SolutionView(HasTraits):
     ]
     self.table_spp = self.pos_table_spp + self.vel_table + self.dops_table
 
-  def vel_ned_callback(self, sbp_msg):
+  def vel_ned_callback(self, sbp_msg, **metadata):
     vel_ned = MsgVelNED(sbp_msg)
 
     if self.vel_log_file is None:
       self.vel_log_file = open(time.strftime("velocity_log_%Y%m%d-%H%M%S.csv"), 'w')
-      self.vel_log_file.write('time,north(m/s),east(m/s),down(m/s),speed(m/s),num_sats')
+      self.vel_log_file.write('time,north(m/s),east(m/s),down(m/s),speed(m/s),num_sats\n')
 
     tow = vel_ned.tow * 1e-3
     if self.nsec is not None:
@@ -285,7 +284,7 @@ class SolutionView(HasTraits):
     ]
     self.table_spp = self.pos_table_spp + self.vel_table + self.dops_table
 
-  def gps_time_callback(self, sbp_msg):
+  def gps_time_callback(self, sbp_msg, **metadata):
     self.week = MsgGPSTime(sbp_msg).wn
     self.nsec = MsgGPSTime(sbp_msg).ns
 

@@ -9,22 +9,17 @@
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
-from traits.api import Str, Instance, Dict, HasTraits, Array, Float, Bool, on_trait_change, List, Int
-from traitsui.api import Item, View, HGroup, ArrayEditor, HSplit
-
-from chaco.api import BarPlot, ArrayDataSource, DataRange1D, LinearMapper, OverlayPlotContainer, LabelAxis, PlotAxis, ArrayPlotData, Plot, Legend
+from chaco.api import BarPlot, ArrayDataSource, DataRange1D, LinearMapper, \
+  OverlayPlotContainer, LabelAxis, PlotAxis, ArrayPlotData, Plot, Legend
 from chaco.tools.api import LegendTool
 from enable.api import ComponentEditor, Component
-
 from pyface.api import GUI
-
+from sbp.tracking import SBP_MSG_TRACKING_STATE
+from traits.api import Str, Instance, Dict, HasTraits, Array, Float, Bool, on_trait_change, List, Int
+from traitsui.api import Item, View, HGroup, ArrayEditor, HSplit
+import numpy as np
 import struct
 
-import numpy as np
-
-from sbp.tracking import SBP_MSG_TRACKING_STATE
-
-TRACKING_STATE_BYTES_PER_CHANNEL = 6
 NUM_POINTS = 200
 
 colours_list = [
@@ -73,8 +68,8 @@ class TrackingView(HasTraits):
     )
   )
 
-  def tracking_state_callback(self, sbp_msg):
-    n_channels = len(sbp_msg.payload) / TRACKING_STATE_BYTES_PER_CHANNEL
+  def tracking_state_callback(self, sbp_msg, **metadata):
+    n_channels = len(sbp_msg.states)
     if n_channels != self.n_channels:
       # Update number of channels
       self.n_channels = n_channels
@@ -86,12 +81,11 @@ class TrackingView(HasTraits):
         self.plot_data.set_data('ch'+str(n), [0.0])
         pl = self.plot.plot(('t', 'ch'+str(n)), type='line', color='auto', name='ch'+str(n))
         self.plots.append(pl)
-      print 'Number of tracking channels changed to', n_channels
-
-    fmt = '<' + n_channels * 'BBf'
-    state_data = struct.unpack(fmt, sbp_msg.payload)
-    for n, s in enumerate(self.states):
-      s.update(*state_data[3*n:3*(n+1)])
+      print 'Number of tracking channels changed to {0}'.format(n_channels)
+    for n, k in enumerate(self.states):
+      s = sbp_msg.states[n]
+      prn = s.sid.sat
+      k.update(s.state, prn, s.cn0)
     GUI.invoke_later(self.update_plot)
 
   def update_plot(self):
@@ -111,28 +105,25 @@ class TrackingView(HasTraits):
 
   def __init__(self, link):
     super(TrackingView, self).__init__()
-
     self.n_channels = None
-
     self.plot_data = ArrayPlotData(t=[0.0])
     self.plot = Plot(self.plot_data, auto_colors=colours_list, emphasized=True)
     self.plot.title = 'Tracking C/N0'
     self.plot.title_color = [0,0,0.43]
-    self.plot.value_range.margin = 0.1
+    self.ylim = self.plot.value_mapper.range
+    self.ylim.low = 25
+    self.ylim.high = 60
     self.plot.value_range.bounds_func = lambda l, h, m, tb: (0, h*(1+m))
     self.plot.value_axis.orientation = 'right'
     self.plot.value_axis.axis_line_visible = False
     self.plot.value_axis.title = 'dB-Hz'
     t = range(NUM_POINTS)
     self.plot_data.set_data('t', t)
-
     self.plot.legend.visible = True
     self.plot.legend.align = 'ul'
     self.plot.legend.tools.append(LegendTool(self.plot.legend, drag_button="right"))
-
     self.link = link
     self.link.add_callback(self.tracking_state_callback, SBP_MSG_TRACKING_STATE)
-
     self.python_console_cmds = {
       'track': self
     }

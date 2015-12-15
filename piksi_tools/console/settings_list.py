@@ -12,17 +12,8 @@
 import yaml
 import pprint
 import sys
+from piksi_tools.console.utils import determine_path
 import os
-
-def determine_path ():
-    """Borrowed from wxglade.py"""
-    try:
-        root = __file__
-        if os.path.islink (root):
-            root = os.path.realpath (root)
-        return os.path.dirname (os.path.abspath (root))
-    except:
-        print "There is no __file__ variable. Please contact the author."
 
 class SettingsList():
   list_of_dicts = list()
@@ -44,8 +35,10 @@ class SettingsList():
       if thisdict and isinstance(thisdict, dict):
         returnvar = thisdict.get(field,"")
       else:
-        print "Error in settings list parsed yaml file."
-        print "No entry for name  {0} and group is {1}".format(name,group)
+        if not self.warned_dict.get(name+group, False):
+          print "Error in settings list parsed yaml file."
+          print "No entry for name  {0} and group is {1}".format(name,group)
+          self.warned_dict[name+group] = True
     if not returnvar:
       returnvar = ""
     return returnvar
@@ -71,8 +64,9 @@ class SettingsList():
       else:
         path_to_file = os.path.join(determine_path(), filename)
       stram = open(path_to_file, "r")
-      temp_dict = yaml.load(stram) 
+      temp_dict = yaml.load(stram)
       self.list_of_dicts = temp_dict
+      self.warned_dict = {}
       # inform user of success or failure
       print "Loaded settings yaml file from path " + path_to_file
       print "Number of settings loaded {0}".format(len(self.list_of_dicts))

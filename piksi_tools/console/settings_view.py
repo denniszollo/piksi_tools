@@ -24,25 +24,20 @@ else:
   SVGButton = dict
 from pyface.api import GUI
 
-import struct
 import math
 import os
 import numpy as np
 import datetime
 
-
 from piksi_tools.fileio import FileIO
-import callback_prompt as prompt
+import piksi_tools.console.callback_prompt as prompt
+from piksi_tools.console.utils import determine_path
 
-from sbp.piksi    import *
-from sbp.settings import *
-from sbp.system   import SBP_MSG_STARTUP
+from sbp.piksi      import *
+from sbp.settings   import *
+from sbp.system     import *
 
 from settings_list import SettingsList
-
-
-def u16_to_str(i):
-  return chr(i & 0xff) + chr(i >> 8)
 
 class SettingBase(HasTraits):
   name = Str()
@@ -74,6 +69,7 @@ class Setting(SettingBase):
       Item('full_name', label='Name', style='readonly'),
       Item('value', editor=TextEditor(auto_set=False, enter_set=True)),
       Item('description', style='readonly'),
+      Item('units', style='readonly'),
       Item('default_value', style='readonly'),
       UItem('notes', label="Notes", height=-1,
             editor=MyTextEditor(TextEditor(multi_line=True)), style='readonly',
@@ -90,8 +86,10 @@ class Setting(SettingBase):
     self.value = value
     self.ordering = ordering
     self.settings = settings
+    self.expert = settings.settings_yaml.get_field(section, name, 'expert')
     self.description = settings.settings_yaml.get_field(section,
                                                            name, 'Description')
+    self.units = settings.settings_yaml.get_field(section, name, 'units')
     self.notes = settings.settings_yaml.get_field(section, name, 'Notes')
     self.default_value = settings.settings_yaml.get_field(section, name,
                                                              'default value')
@@ -148,30 +146,38 @@ class SimpleAdapter(TabularAdapter):
     return self.item.name.replace('_', ' ')
 
 class SettingsView(HasTraits):
+  """Traits-defined console settings view.
+
+  link : object
+    Serial driver object.
+  read_finished_functions : list
+    Callbacks to call on finishing a settings read.
+  name_of_yaml_file : str
+    Settings to read from (defaults to settings.yaml)
+  hide_expert : bool
+    Hide expert settings (defaults to False)
+  gui_mode : bool
+    ??? (defaults to True)
+  skip : bool
+    Skip reading of the settings (defaults to False). Intended for
+    use when reading from network connections.
+  """
 
   settings_yaml = list()
-
   settings_read_button = SVGButton(
     label='Reload', tooltip='Reload settings from Piksi',
-    filename=os.path.join(os.path.dirname(__file__), 'images', 'fontawesome', 'refresh.svg'),
-    width=16, height=16
-  )
-
+    filename=os.path.join(determine_path(), 'images', 'fontawesome', 'refresh.svg'),
+    width=16, height=16)
   settings_save_button = SVGButton(
     label='Save to Flash', tooltip='Save settings to Flash',
-    filename=os.path.join(os.path.dirname(__file__), 'images', 'fontawesome', 'download.svg'),
-    width=16, height=16
-  )
-
+    filename=os.path.join(determine_path(), 'images', 'fontawesome', 'download.svg'),
+    width=16, height=16)
   factory_default_button = SVGButton(
     label='Reset to Defaults', tooltip='Reset to Factory Defaults',
-    filename=os.path.join(os.path.dirname(__file__), 'images', 'fontawesome', 'exclamation-triangle.svg'),
-    width=16, height=16
-  )
-
+    filename=os.path.join(determine_path(), 'images', 'fontawesome', 'exclamation-triangle.svg'),
+    width=16, height=16)
   settings_list = List(SettingBase)
   selected_setting = Instance(SettingBase)
-
   traits_view = View(
     HSplit(
       Item('settings_list',
@@ -197,10 +203,10 @@ class SettingsView(HasTraits):
   def _settings_read_button_fired(self):
     self.enumindex = 0
     self.ordering_counter = 0
-    self.link.send(SBP_MSG_SETTINGS_READ_BY_INDEX, u16_to_str(self.enumindex))
+    self.link(MsgSettingsReadByIndexReq(index=self.enumindex))
 
   def _settings_save_button_fired(self):
-    self.link.send(SBP_MSG_SETTINGS_SAVE, "")
+    self.link(MsgSettingsSave())
 
   def _factory_default_button_fired(self):
     confirm_prompt = prompt.CallbackPrompt(
@@ -217,39 +223,45 @@ class SettingsView(HasTraits):
     fio = FileIO(self.link)
     fio.remove('config')
     # Reset the Piksi
-    self.link.send(SBP_MSG_RESET, '')
+    self.link(MsgReset())
 
   ##Callbacks for receiving messages
-
-  def settings_read_by_index_callback(self, sbp_msg):
-    if not sbp_msg.payload:
-      self.settings_list = []
-
-      sections = sorted(self.settings.keys())
-
-      for sec in sections:
+  def settings_display_setup(self):
+    self.settings_list = []
+    sections = sorted(self.settings.keys())
+    for sec in sections:
+      this_section = []
+      for name, setting in sorted(self.settings[sec].iteritems(),
+        key=lambda (n, s): s.ordering):
+        if not (self.hide_expert and setting.expert):
+          this_section.append(setting)
+      if this_section:
         self.settings_list.append(SectionHeading(sec))
-        for name, setting in sorted(self.settings[sec].iteritems(), key=lambda (n, s): s.ordering):
-          self.settings_list.append(setting)
+        self.settings_list += this_section
+    # call read_finished_functions as needed
+    for cb in self.read_finished_functions:
+      if self.gui_mode:
+        GUI.invoke_later(cb)
+      else:
+        cb()
 
-      for cb in self.read_finished_functions:
-        if self.gui_mode:
-          GUI.invoke_later(cb)
-        else:
-          cb()
-      return
+  def settings_read_by_index_done_callback(self, sbp_msg, **metadata):
+    self.settings_display_setup()
+
+  def settings_read_by_index_callback(self, sbp_msg, **metadata):
+    if not sbp_msg.payload:
+      # Settings output from Piksi is terminated by an empty message.
+      # Bundle up our list and display it.
+      self.settings_display_setup()
 
     section, setting, value, format_type = sbp_msg.payload[2:].split('\0')[:4]
     self.ordering_counter += 1
-
     if format_type == '':
       format_type = None
     else:
       setting_type, setting_format = format_type.split(':')
-
     if not self.settings.has_key(section):
       self.settings[section] = {}
-
     if format_type is None:
       # Plain old setting, no format information
       self.settings[section][setting] = Setting(setting, section, value,
@@ -271,46 +283,56 @@ class SettingsView(HasTraits):
                                                  )
 
     self.enumindex += 1
-    self.link.send(SBP_MSG_SETTINGS_READ_BY_INDEX, u16_to_str(self.enumindex))
+    self.link(MsgSettingsReadByIndexReq(index=self.enumindex))
 
-  def settings_read_callback(self, sbp_msg):
-    section, setting, value = sbp_msg.payload.split('\0')[:3]
-    # Hack to prevent an infinite loop of setting settings
-    self.settings[section][setting].value = Undefined
-    self.settings[section][setting].value = value
-
-  def piksi_startup_callback(self, sbp_msg):
+  def piksi_startup_callback(self, sbp_msg, **metadata):
     self._settings_read_button_fired()
 
   def set(self, section, name, value):
-      self.link.send(SBP_MSG_SETTINGS,
-          '%s\0%s\0%s\0' % (section, name, value))
+    self.link(MsgSettingsWrite(setting='%s\0%s\0%s\0' % (section, name, value)))
 
-  def __init__(self, link, read_finished_functions=[],
-               name_of_yaml_file="settings.yaml", gui_mode=True):
+  def cleanup(self):
+    """ Remove callbacks from serial link. """
+    self.link.remove_callback(self.piksi_startup_callback, SBP_MSG_STARTUP)
+    self.link.remove_callback(self.settings_read_by_index_callback,
+                              SBP_MSG_SETTINGS_READ_BY_INDEX_REQ)
+    self.link.remove_callback(self.settings_read_by_index_callback,
+                              SBP_MSG_SETTINGS_READ_BY_INDEX_RESP)
+    self.link.remove_callback(self.settings_read_by_index_done_callback,
+                              SBP_MSG_SETTINGS_READ_BY_INDEX_DONE)
 
+  def __enter__(self):
+    return self
+
+  def __exit__(self, *args):
+    self.cleanup()
+
+  def __init__(self,
+               link,
+               read_finished_functions=[],
+               name_of_yaml_file="settings.yaml",
+               hide_expert=False,
+               gui_mode=True,
+               skip=False):
     super(SettingsView, self).__init__()
-
+    self.hide_expert = hide_expert
     self.gui_mode = gui_mode
     self.enumindex = 0
     self.settings = {}
     self.link = link
-    self.link.add_callback(self.settings_read_callback, SBP_MSG_SETTINGS)
     self.link.add_callback(self.piksi_startup_callback, SBP_MSG_STARTUP)
     self.link.add_callback(self.settings_read_by_index_callback,
-      SBP_MSG_SETTINGS_READ_BY_INDEX)
-
+                           SBP_MSG_SETTINGS_READ_BY_INDEX_REQ)
+    self.link.add_callback(self.settings_read_by_index_callback,
+                           SBP_MSG_SETTINGS_READ_BY_INDEX_RESP)
+    self.link.add_callback(self.settings_read_by_index_done_callback,
+                           SBP_MSG_SETTINGS_READ_BY_INDEX_DONE)
     # Read in yaml file for setting metadata
     self.settings_yaml = SettingsList(name_of_yaml_file)
-
     # List of functions to be executed after all settings are read.
     # No support for arguments currently.
     self.read_finished_functions = read_finished_functions
-
     self.setting_detail = SettingBase()
-
-    self._settings_read_button_fired()
-
-    self.python_console_cmds = {
-      'settings': self
-    }
+    if not skip:
+      self._settings_read_button_fired()
+    self.python_console_cmds = {'settings': self}

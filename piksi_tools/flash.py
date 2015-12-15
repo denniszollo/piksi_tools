@@ -20,10 +20,7 @@ from threading import Lock
 from itertools import groupby
 from sbp.flash import *
 
-# 0.5 * ADDRS_PER_OP * MAX_QUEUED_OPS (plus SBP overhead) is how much each of
-# the STM32 TX/RX buffers will be filled by the program/read callback messages.
 ADDRS_PER_OP = 128
-MAX_QUEUED_OPS = 1
 
 M25_SR_SRWD = 1 << 7
 M25_SR_BP2  = 1 << 4
@@ -189,9 +186,8 @@ def _stm_lock_sector(self, sector):
   """
   if not 0 <= sector <+ 11:
     raise ValueError("Must have 0 <= sector <= 11, received %d" % sector)
-  msg_buf = struct.pack("B", sector)
   self.inc_n_queued_ops()
-  self.link.send(SBP_MSG_STM_FLASH_LOCK_SECTOR, msg_buf)
+  self.link(MsgStmFlashLockSector(sector=sector))
   while self.get_n_queued_ops() > 0:
     time.sleep(0.001)
 
@@ -206,9 +202,8 @@ def _stm_unlock_sector(self, sector):
   """
   if not 0 <= sector <= 11:
     raise ValueError("Must have 0 <= sector <= 11, received %d" % sector)
-  msg_buf = struct.pack("B", sector)
   self.inc_n_queued_ops()
-  self.link.send(SBP_MSG_STM_FLASH_UNLOCK_SECTOR, msg_buf)
+  self.link.send(MsgStmFlashUnlockSector(sector=sector))
   while self.get_n_queued_ops() > 0:
     time.sleep(0.001)
 
@@ -231,7 +226,7 @@ def _m25_write_status(self, sr):
 
 class Flash():
 
-  def __init__(self, link, flash_type, sbp_version):
+  def __init__(self, link, flash_type, sbp_version, max_queued_ops=1):
     """
     Object representing either of the two flashes (STM/M25) on the Piksi,
     including methods to erase, program, and read.
@@ -244,12 +239,20 @@ class Flash():
       Which Piksi flash to interact with ("M25" or "STM").
     sbp_version : (int, int)
       SBP protocol version, used to select messages to send.
+    max_queued_ops : int
+      Maximum number of Flash read/program operations to queue in device flash.
+      (0.5 * ADDRS_PER_OP + SBP packet overhead) * max_queued_ops is how much
+      of the device UART RX buffer will be filled by the program/read callback
+      messages. A higher value will significantly speed up flashing, but can
+      result in RX buffer overflows in other UARTs if the device is receiving
+      data on other UARTs.
 
     Returns
     -------
     out : Flash instance
     """
     self._n_queued_ops = 0
+    self.max_queued_ops = max_queued_ops
     self.nqo_lock = Lock()
     self.stopped = False
     self.status = ''
@@ -259,7 +262,7 @@ class Flash():
     # IntelHex object to store read flash data in that was read from device.
     self._read_callback_ihx = IntelHex()
     self.link.add_callback(self._done_callback, SBP_MSG_FLASH_DONE)
-    self.link.add_callback(self._read_callback, SBP_MSG_FLASH_READ_DEVICE)
+    self.link.add_callback(self._read_callback, SBP_MSG_FLASH_READ_RESP)
     self.ihx_elapsed_ops = 0 # N operations finished in self.write_ihx
     if self.flash_type == "STM":
       self.flash_type_byte = 0
@@ -345,7 +348,7 @@ class Flash():
     """ Remove instance callbacks from sbp.client.handler.Handler. """
     self.stopped = True
     self.link.remove_callback(self._done_callback, SBP_MSG_FLASH_DONE)
-    self.link.remove_callback(self._read_callback, SBP_MSG_FLASH_READ_DEVICE)
+    self.link.remove_callback(self._read_callback, SBP_MSG_FLASH_READ_RESP)
 
   def __str__(self):
     """ Return flashing status. """
@@ -368,7 +371,7 @@ class Flash():
       raise Warning(text)
     msg_buf = struct.pack("BB", self.flash_type_byte, sector)
     self.inc_n_queued_ops()
-    self.link.send(SBP_MSG_FLASH_ERASE, msg_buf)
+    self.link(MsgFlashErase(target=self.flash_type_byte, sector_num=sector))
     while self.get_n_queued_ops() > 0:
       time.sleep(0.001)
 
@@ -389,11 +392,14 @@ class Flash():
     self.inc_n_queued_ops()
     # < 0.45 of SBP protocol, reuse single flash message.
     if self.sbp_version < (0, 45):
-      self.link.send(SBP_MSG_FLASH_DONE, msg_buf + data)
+      self.link(SBP(SBP_MSG_FLASH_DONE, payload=msg_buf+data))
     else:
-      self.link.send(SBP_MSG_FLASH_PROGRAM, msg_buf + data)
+      self.link(MsgFlashProgram(target=self.flash_type_byte,
+                                addr_start=address,
+                                addr_len=len(data),
+                                data=data))
 
-  def read(self, address, length):
+  def read(self, address, length, block=False):
     """
     Read a set of addresses of the flash.
 
@@ -403,6 +409,13 @@ class Flash():
       Starting address of length addresses to read.
     length : int
       Number of addresses to read.
+    block : bool
+      Block until addresses are read and return them.
+
+    Returns
+    =======
+    out : str
+      String of bytes (big endian) read from address.
     """
     msg_buf = struct.pack("B", self.flash_type_byte)
     msg_buf += struct.pack("<I", address)
@@ -410,11 +423,17 @@ class Flash():
     self.inc_n_queued_ops()
     # < 0.45 of SBP protocol, reuse single read message.
     if self.sbp_version < (0, 45):
-      self.link.send(SBP_MSG_FLASH_READ_DEVICE, msg_buf)
+      self.link(SBP(SBP_MSG_FLASH_READ_RESP, payload=msg_buf))
     else:
-      self.link.send(SBP_MSG_FLASH_READ_HOST, msg_buf)
+      self.link(MsgFlashReadReq(target=self.flash_type_byte,
+                                addr_start=address,
+                                addr_len=length))
+    if block:
+      while self.get_n_queued_ops() > 0:
+        time.sleep(0.001)
+      return self._read_callback_ihx.gets(address, length)
 
-  def _done_callback(self, sbp_msg):
+  def _done_callback(self, sbp_msg, **metadata):
     """
     Handles flash done message sent from device.
 
@@ -432,7 +451,7 @@ class Flash():
     assert self.get_n_queued_ops() >= 0, \
       "Number of queued flash operations is negative"
 
-  def _read_callback(self, sbp_msg):
+  def _read_callback(self, sbp_msg, **metadata):
     """
     Handles flash read message sent from device.
 
@@ -510,13 +529,13 @@ class Flash():
         binary = ihx.tobinstr(start=addr, size=ADDRS_PER_OP)
 
         # Program ADDRS_PER_OP addresses
-        while self.get_n_queued_ops() >= MAX_QUEUED_OPS:
+        while self.get_n_queued_ops() >= self.max_queued_ops:
           time.sleep(0.001)
         self.program(addr, binary)
         self.ihx_elapsed_ops += 1
 
         # Read ADDRS_PER_OP addresses
-        while self.get_n_queued_ops() >= MAX_QUEUED_OPS:
+        while self.get_n_queued_ops() >= self.max_queued_ops:
           time.sleep(0.001)
         self.read(addr, ADDRS_PER_OP)
         self.ihx_elapsed_ops += 1

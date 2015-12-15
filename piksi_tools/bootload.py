@@ -29,10 +29,9 @@ import sys
 import serial_link
 
 from sbp.bootload import *
-from sbp.deprecated import *
 from sbp.logging import *
 from sbp.piksi import *
-from sbp.client.handler import Handler
+from sbp.client import Handler, Framer
 
 class Bootloader():
   """
@@ -47,8 +46,8 @@ class Bootloader():
     # SBP version is unset in older devices.
     self.sbp_version = (0, 0)
     self.link = link
-    self.link.add_callback(self._deprecated_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_DEPRECATED)
-    self.link.add_callback(self._handshake_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_DEVICE)
+    self.link.add_callback(self._deprecated_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_DEP_A)
+    self.link.add_callback(self._handshake_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_RESP)
 
   def __enter__(self):
     return self
@@ -58,44 +57,70 @@ class Bootloader():
       self.stop()
 
   def stop(self):
+    """ Remove Bootloader instance callbacks from serial link. """
     self.stopped = True
-    self.link.remove_callback(self._deprecated_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_DEPRECATED)
-    self.link.remove_callback(self._handshake_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_DEVICE)
+    self.link.remove_callback(self._deprecated_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_DEP_A)
+    self.link.remove_callback(self._handshake_callback, SBP_MSG_BOOTLOADER_HANDSHAKE_RESP)
 
-  def _deprecated_callback(self, sbp_msg):
-    if len(sbp_msg.payload)==1 and struct.unpack('B', sbp_msg.payload[0])==0:
+  def _deprecated_callback(self, sbp_msg, **metadata):
+    """ Bootloader handshake for deprecated message ID. """
+    hs_device = MsgBootloaderHandshakeDepA(sbp_msg)
+    if len(hs_device.handshake)==1 and hs_device.handshake[0]==0:
       # == v0.1 of the bootloader, returns hardcoded version number 0.
       self.version = "v0.1"
     else:
       # > v0.1 of the bootloader, returns git commit string.
-      self.version = sbp_msg.payload[:]
+      self.version = ''.join([chr(i) for i in hs_device.handshake])
+      if self.version == '':
+        self.version = "Unknown"
     self.handshake_received = True
 
-  def _handshake_callback(self, sbp_msg):
-    self.version = sbp_msg.version
-    self.sbp_version = ((sbp_msg.flags >> 8) & 0xF, sbp_msg.flags & 0xF)
+  def _handshake_callback(self, sbp_msg, **metadata):
+    """ Bootloader handshake callback. """
+    hs_device = MsgBootloaderHandshakeResp(sbp_msg)
+    self.version = hs_device.version
+    self.sbp_version = ((hs_device.flags >> 8) & 0xFF, hs_device.flags & 0xFF)
     self.handshake_received = True
 
-  def wait_for_handshake(self, timeout=None):
+  def handshake(self, timeout=None):
+    """
+    Handshake device into bootloader mode. If handshake is not received from device, attempt
+    to reset it.
+
+    Parameters
+    ==========
+    timeout: int
+      Time to wait before returning False.
+
+    Returns
+    =======
+    out : bool
+      Returns True if handshake was received, False if timeout was reached before a handshake
+      was received.
+    """
     if timeout is not None:
       t0 = time.time()
     self.handshake_received = False
+    expire = time.time() + 15.0
+    self.link(MsgReset())
     while not self.handshake_received:
       time.sleep(0.1)
       if timeout is not None:
         if time.time()-timeout > t0:
           return False
-    return True
-
-  def reply_handshake(self):
+      if time.time() > expire:
+        expire = time.time() + 15.0
+        self.link(MsgReset())
     # < 0.45 of SBP protocol, reuse single handshake message.
     if self.sbp_version < (0, 45):
-      self.link.send(SBP_MSG_BOOTLOADER_HANDSHAKE_DEPRECATED, '\x00')
+      self.link(MsgBootloaderHandshakeDepA(handshake=''))
     else:
-      self.link.send(SBP_MSG_BOOTLOADER_HANDSHAKE_HOST, '\x00')
+      self.link(MsgBootloaderHandshakeReq())
+    return True
 
   def jump_to_app(self):
-    self.link.send(SBP_MSG_BOOTLOADER_JUMP_TO_APP, '\x00')
+    """ Request Piksi bootloader jump to application. """
+    self.link(MsgBootloaderJumpToApp(jump=0))
 
 def get_args():
   """
@@ -123,6 +148,10 @@ def get_args():
   parser.add_argument("-f", "--ftdi",
                       help="use pylibftdi instead of pyserial.",
                       action="store_true")
+  parser.add_argument("-t", "--timeout", nargs=1, type=int,
+                      default=[None], 
+                      help="Specify Timeout for which to wait for handshake.",
+                      )
   args = parser.parse_args()
   if args.stm and args.m25:
     parser.error("Only one of -s or -m options may be chosen")
@@ -149,21 +178,21 @@ def main():
   # Driver with context
   with serial_link.get_driver(use_ftdi, port, baud) as driver:
     # Handler with context
-    with Handler(driver.read, driver.write) as link:
-      link.start()
-      link.send(SBP_MSG_RESET, "")
-      time.sleep(0.2)
-      link.add_callback(serial_link.printer, SBP_MSG_PRINT)
+    with Handler(Framer(driver.read, driver.write)) as link:
+      link.add_callback(serial_link.log_printer, SBP_MSG_LOG)
+      link.add_callback(serial_link.printer, SBP_MSG_PRINT_DEP)
 
       # Tell Bootloader we want to write to the flash.
       with Bootloader(link) as piksi_bootloader:
         print "Waiting for bootloader handshake message from Piksi ...",
         sys.stdout.flush()
         try:
-          piksi_bootloader.wait_for_handshake()
+          handshake_received = piksi_bootloader.handshake(args.timeout[0])
         except KeyboardInterrupt:
           return
-        piksi_bootloader.reply_handshake()
+        if not (handshake_received and piksi_bootloader.handshake_received):
+          print "No handshake received."
+          sys.exit(1) 
         print "received."
         print "Piksi Onboard Bootloader Version:", piksi_bootloader.version
         if piksi_bootloader.sbp_version > (0, 0):
