@@ -35,9 +35,6 @@ def rpy_opk(phi, theta, psi):
   return (omega, phi, kappa)
 
 
-  return(omega, phi, kappa)
-
-
 def get_args():
   """
   Get and parse arguments.
@@ -50,13 +47,19 @@ def get_args():
   parser.add_argument('-o', '--outfile',
                       default=["out.csv"],
                       help='specify the name of the file output.')
+  parser.add_argument('-i', '--image',
+                      default=["DSC000.JPG"],
+                      help='specify the name of the first iamage.')
   args = parser.parse_args()
   return args
 
 def main():
-  X = -2704557
-  Y = -4263069
-  Z =  3884684
+  X = -2709966
+  Y = -4262797
+  Z =  3881235
+  image_prefix = "DSC"
+  image_extension = "JPG"
+  image_num = 910   
   file_io = False
   args = get_args()
   filename = args.dataflashfile
@@ -75,7 +78,7 @@ def main():
   print "Extracting positions at MSG_EXT_EVENTS with debounce"
   pos_trigger_csv_filename = os.path.join(dirname, filename + '.event.csv')
   if file_io:
-    interpolate_event_positions.write_positions(jsonfilename, pos_trigger_csv_filename, "MsgBaselineECEF", 1000)
+    interpolate_event_positions.write_positions(jsonfilename, pos_trigger_csv_filename, "MsgBaselineECEF", 500)
     with open(pos_trigger_csv_filename) as pos_trigger_csvfd:
       pos_trigger_csv = csv.reader(pos_trigger_csvfd)
       msg_tow = []
@@ -104,18 +107,22 @@ def main():
   lat_list = []
   lon_list = []
   ht_list = []
+  image_list = []
   for x, y, z in zip(msg_horizontal, msg_vertical, msg_depth):
     ECEFx = X + x/1000
     ECEFy = Y + y/1000
     ECEFz = Z + z/1000
+    image = image_prefix + "{:0>5}".format(image_num) + "." + image_extension
     out = wgsecef2llh(ECEFx, ECEFy, ECEFz)
-    lat_list.append(out[0]*180/pi)
+    lat_list.append(out[0] * 180/pi)
     lon_list.append(out[1] * 180/pi)
     ht_list.append(out[2])
+    image_list.append(image)
+    image_num += 1
   with open(outfile, 'wb') as f:
     writer = csv.writer(f)
-    for val in zip(lat_list, lon_list, ht_list, omega_list, phi_list, kappa_list):
-        writer.writerow([val])
+    for val in zip(image_list, lat_list, lon_list, ht_list, omega_list, phi_list, kappa_list):
+      writer.writerow(val)
 
 if __name__ == "__main__":
   main()
