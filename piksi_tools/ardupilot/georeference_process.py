@@ -6,7 +6,7 @@ from piksi_tools import interpolate_event_positions
 from piksi_tools.ardupilot import query_mavlink
 from piksi_tools.ardupilot import mavlink_decode
 from pymavlink.DFReader import DFReader_binary
-from swiftnav.coord_system import wgsecef2llh
+from swiftnav.coord_system import wgsecef2llh_
 import csv
 import os
 from math import sin,cos,tan, atan, asin, pi
@@ -44,27 +44,25 @@ def get_args():
   parser = argparse.ArgumentParser(description='Mavlink to SBP JSON converter')
   parser.add_argument("dataflashfile",
                       help="the dataflashfile to convert.")
-  parser.add_argument('-o', '--outfile',
-                      default=["out.csv"],
+  parser.add_argument('-o', '--outfile', type=str,
+                      default="out.csv",
                       help='specify the name of the file output.')
-  parser.add_argument('-i', '--image',
-                      default=["DSC000.JPG"],
+  parser.add_argument('-i', '--imagenum',
+                      default=0, type=int,
                       help='specify the name of the first iamage.')
+  parser.add_argument('-b', '--base_posn_ecef', nargs=3, type=float)
   args = parser.parse_args()
   return args
 
 def main():
-  X = -2709966
-  Y = -4262797
-  Z =  3881235
   image_prefix = "DSC"
   image_extension = "JPG"
-  image_num = 910   
   file_io = False
   args = get_args()
   filename = args.dataflashfile
-  outfile = args.outfile[0]
-  dirname = None
+  outfile = args.outfile
+  print "Writing output to {0}".format(outfile)
+  image_num = args.imagenum
   dirname = 'intermediate'
   try:
     os.stat(dirname)
@@ -77,23 +75,19 @@ def main():
     g = mavlink_decode.rewrite(f, jsonfilename)
   print "Extracting positions at MSG_EXT_EVENTS with debounce"
   pos_trigger_csv_filename = os.path.join(dirname, filename + '.event.csv')
-  if file_io:
-    interpolate_event_positions.write_positions(jsonfilename, pos_trigger_csv_filename, "MsgBaselineECEF", 500)
-    with open(pos_trigger_csv_filename) as pos_trigger_csvfd:
-      pos_trigger_csv = csv.reader(pos_trigger_csvfd)
-      msg_tow = []
-      for i, each in enumerate(pos_trigger_csv):
-        if i == 0:
-          continue
-        msg_tow.append(each[0])
+  if args.base_posn_ecef:
+    X = args.base_posn_ecef[0]
+    Y = args.base_posn_ecef[1]
+    Z = args.base_posn_ecef[2]
+    message_type, msg_tow, msg_horizontal,\
+    msg_vertical, msg_depth, msg_flag, \
+    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosECEF", 500)
   else:
     message_type, msg_tow, msg_horizontal,\
     msg_vertical, msg_depth, msg_flag, \
-    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgBaselineECEF", 1000)
-  print "Interpolating ATT message"
+    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosLLH", 500, lambda x: x.flags>0)
+    print "Interpolating ATT message"
   log = DFReader_binary(filename)
-  print len(msg_tow)
-  print len(msg_horizontal)
   msg_list = query_mavlink.query_mavlink_timestamp_list(log, msg_tow, 'ATT')
   omega_list = []
   phi_list = []
@@ -109,14 +103,19 @@ def main():
   ht_list = []
   image_list = []
   for x, y, z in zip(msg_horizontal, msg_vertical, msg_depth):
-    ECEFx = X + x/1000
-    ECEFy = Y + y/1000
-    ECEFz = Z + z/1000
+    if args.base_posn_ecef:
+      ECEFx = X + x/1000
+      ECEFy = Y + y/1000
+      ECEFz = Z + z/1000
+      out = wgsecef2llh_(ECEFx, ECEFy, ECEFz)
+      lat_list.append(out[0] * 180/pi)
+      lon_list.append(out[1] * 180/pi)
+      ht_list.append(out[2])
+    else :
+      lat_list.append(x)
+      lon_list.append(y)
+      ht_list.append(z)
     image = image_prefix + "{:0>5}".format(image_num) + "." + image_extension
-    out = wgsecef2llh(ECEFx, ECEFy, ECEFz)
-    lat_list.append(out[0] * 180/pi)
-    lon_list.append(out[1] * 180/pi)
-    ht_list.append(out[2])
     image_list.append(image)
     image_num += 1
   with open(outfile, 'wb') as f:
