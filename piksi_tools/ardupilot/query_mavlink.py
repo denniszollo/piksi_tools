@@ -1,6 +1,6 @@
 import datetime as dt
 from pymavlink.DFReader import DFReader_binary
-from swiftnav.gpstime import datetime2gpst, gpst_components2datetime
+from swiftnav.time import datetime2gpst, gpst_components2datetime
 TZ_OFFSET = - 8 * 60 * 60
 # For an individual timestamp, pull out prior and post messages of a particular type
 
@@ -46,8 +46,8 @@ def query_mavlink_single_timestamp(log, timestamp, msg_type):
 
 def interp(msg_a, msg_b, timestamp):
   interp_msg = {}
-  print "first message time {0} and second is {1}. timestamp is {2}".format(
-    msg_a['msg_time'], msg_b['msg_time'], timestamp)
+  #print "first message time {0} and second is {1}. timestamp is {2}".format(
+    #msg_a['msg_time'], msg_b['msg_time'], timestamp)
   time_diff = msg_b['msg_time'] - msg_a['msg_time']
   t = int(timestamp) - msg_a['msg_time']
   for field in msg_a.iterkeys():
@@ -66,7 +66,6 @@ def query_mavlink_timestamp_list(log, timestamps, msg_type):
     #print post
     msg = interp(prior, post, timestamp)
     output_list.append(msg)
- print "output_list is {0}".format(output_list)
  return output_list
 
 def get_args():
