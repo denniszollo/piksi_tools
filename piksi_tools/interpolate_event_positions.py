@@ -264,7 +264,7 @@ def rid_access_data (message_type, msg_tow, msg_horizontal , msg_vertical , msg_
   return numofmsg
 
 
-def collect_positions(infile, msgtype, debouncetime):
+def collect_positions(infile, msgtype, debouncetime, filt_funct=lambda x: True):
   """
   Collects data from the log file and calls functions to analyze that data 
 
@@ -298,7 +298,7 @@ def collect_positions(infile, msgtype, debouncetime):
         hosttimestamp = metadata['timestamp']
         valid_msg = ["MsgBaselineECEF", "MsgPosECEF", "MsgBaselineNED", "MsgPosLLH", "MsgExtEvent"]
         #collect all data in lists
-        if msg.__class__.__name__ in valid_msg :
+        if msg.__class__.__name__ in valid_msg and filt_funct(msg):
           message_type.append(msg.__class__.__name__)
           msg_tow.append(msg.tow)
           msg_flag.append(msg.flags)
@@ -318,7 +318,6 @@ def collect_positions(infile, msgtype, debouncetime):
             msg_depth.append(msg.height)
             msg_sats.append(msg.n_sats)
           elif msg.__class__.__name__ == "MsgExtEvent":
-            print msg.tow
             msg_horizontal.append("0")
             msg_vertical.append("0")
             msg_depth.append("0")
@@ -328,11 +327,11 @@ def collect_positions(infile, msgtype, debouncetime):
       except StopIteration:
         print "reached end of file after {0} milli-seconds".format(hostdelta)
         fix_trigger_rollover(message_type, msg_tow, numofmsg)
-        print 'done roll'
+        print 'Correct EXT Event time for rollover bug'
         fix_trigger_debounce(message_type, msg_tow, numofmsg, debouncetime)
-        print ' done bebounce'
+        print 'Debounce EXT events'
         get_trigger_positions(message_type, msg_tow, msgtype, numofmsg, msg_horizontal, msg_vertical, msg_depth, msg_sats)
-        print 'done interpolation'
+        print 'Interpolate EXT Events'
         print 
         numofmsg =  rid_access_data (message_type, msg_tow, msg_horizontal , msg_vertical , msg_depth , msg_flag , msg_sats , numofmsg)
 
