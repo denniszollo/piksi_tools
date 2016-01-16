@@ -70,7 +70,6 @@ def get_args():
   parser.add_argument("--tcp", action="store_true", default=False,
                       help="Use a TCP connection instead of a local serial port. \
                       If TCP is selected, the port is interpreted as host:port")
-
   return parser.parse_args()
 
 args = get_args()
