@@ -51,6 +51,8 @@ def get_args():
                       default=0, type=int,
                       help='specify the name of the first iamage.')
   parser.add_argument('-b', '--base_posn_ecef', nargs=3, type=float)
+  parser.add_argument('-d', '--debounce', type=float, default=500,
+                      help='specify the time in milliseconds for debounce')
   args = parser.parse_args()
   return args
 
@@ -81,11 +83,11 @@ def main():
     Z = args.base_posn_ecef[2]
     message_type, msg_tow, msg_horizontal,\
     msg_vertical, msg_depth, msg_flag, \
-    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosECEF", 500)
+    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosECEF", args.debounce)
   else:
     message_type, msg_tow, msg_horizontal,\
     msg_vertical, msg_depth, msg_flag, \
-    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosLLH", 500, lambda x: x.flags>0)
+    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosLLH", args.debounce, lambda x: x.flags==0)
     print "Interpolating ATT message"
   log = DFReader_binary(filename)
   msg_list = query_mavlink.query_mavlink_timestamp_list(log, msg_tow, 'ATT')
