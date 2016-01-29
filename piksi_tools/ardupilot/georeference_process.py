@@ -87,7 +87,7 @@ def main():
   else:
     message_type, msg_tow, msg_horizontal,\
     msg_vertical, msg_depth, msg_flag, \
-    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosLLH", args.debounce, lambda x: x.flags==0)
+    msg_sats, numofmsg = interpolate_event_positions.collect_positions(jsonfilename, "MsgPosLLH", args.debounce, lambda x: x.flags>=1)
     print "Interpolating ATT message"
   log = DFReader_binary(filename)
   msg_list = query_mavlink.query_mavlink_timestamp_list(log, msg_tow, 'ATT')
