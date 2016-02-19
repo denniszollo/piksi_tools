@@ -27,7 +27,7 @@ import datetime
 from sbp.observation import *
 
 class SimpleAdapter(TabularAdapter):
-    columns = [('PRN', 0), ('Pseudorange',  1), ('Carrier Phase',  2), ('C/N0', 3)]
+    columns = [('PRN', 0), ('Pseudorange',  1), ('Carrier Phase',  2), ('C/N0', 3),  ('Lock', 4)]
 
 class ObservationView(HasTraits):
   python_console_cmds = Dict()
@@ -153,7 +153,7 @@ pyNEX                                   %s UTC PGM / RUN BY / DATE
         prn += 1
       self.obs[prn] = (float(o.P) / 1e2,
                        float(o.L.i) + float(o.L.f) / (1<<8),
-                       float(o.cn0) / 4)
+                       float(o.cn0) / 4, o.lock)
     if (count == total - 1):
       self.t = datetime.datetime(1980, 1, 6) + \
                datetime.timedelta(weeks=self.gps_week) + \
