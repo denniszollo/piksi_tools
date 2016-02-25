@@ -28,7 +28,7 @@ def rpy_opk(phi, theta, psi):
   c32 = cos(theta) * sin(phi)
   c33 = cos(theta) * cos(phi)
 
-  omega = atan(c31/c33)
+  omega = -atan(c31/c33)
   phi = asin(-c32)
   kappa = atan(c12/c22)
 
