@@ -6,4 +6,6 @@ ATTRS{idProduct}=="8398", ATTRS{idVendor}=="0403", MODE="666", GROUP="dialout"
 ATTRS{idProduct}=="A4A7", ATTRS{idVendor}=="0525", MODE="666", GROUP="dialout"
 echo "Adding current user to the dialout group."
 sudo usermod -a -G dialout $current_user 
+echo "reloading udev rules"
+sudo udevadm control --reload-rules
 EOF
