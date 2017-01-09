@@ -540,15 +540,20 @@ class UpdateView(HasTraits):
     try:
       self.piksi_hw_rev = \
         HW_REV_LOOKUP[self.settings['system_info']['hw_revision'].value]
-      self.piksi_stm_vers = \
-        self.settings['system_info']['firmware_version'].value
+      self.is_v2 = self.piksi_hw_rev.startswith('piksi_v2')
+      if self.is_v2:
+        self.piksi_stm_vers = \
+          self.settings['system_info']['firmware_version'].value
+      else:
+        self.piksi_stm_vers = \
+          self.settings['system_info']['sw_version'].value
       self.piksi_nap_vers = \
         self.settings['system_info']['nap_version'].value
     except KeyError:
       self._write("\nError: Settings received from Piksi don't contain firmware version keys. Please contact Swift Navigation.\n")
+      self.is_v2 = False
       return
 
-    self.is_v2 = self.piksi_hw_rev.startswith('piksi_v2')
     if self.is_v2:
       self.stm_fw.set_flash_type('STM')
       self.serial_upgrade = True
@@ -609,17 +614,19 @@ class UpdateView(HasTraits):
     sleep(0.5)
 
     # Check if firmware is out of date and notify user if so.
-    if self.prompt:
-      local_stm_version = parse_version(
-          self.settings['system_info']['firmware_version'].value)
-      remote_stm_version = parse_version(self.newest_stm_vers)
+    # This does not run anylonger for v2
+    if self.prompt and not self.is_v2:
+      compare_version = True
+      try:
+        local_stm_version = parse_version(
+          self.settings['system_info']['sw_version'].value)
+      except KeyError:
+        compare_versions = False
+           
+      if compare_versions:  
+        remote_stm_version = parse_version(self.newest_stm_vers)
 
-      local_nap_version = parse_version(
-          self.settings['system_info']['nap_version'].value)
-      remote_nap_version = parse_version(self.newest_nap_vers)
-
-      self.fw_outdated = remote_nap_version > local_nap_version or \
-                         remote_stm_version > local_stm_version
+        self.fw_outdated = remote_stm_version > local_stm_version
 
       if self.fw_outdated:
         fw_update_prompt = \
@@ -628,21 +635,11 @@ class UpdateView(HasTraits):
                                   actions=[prompt.close_button]
                                  )
 
-        if self.update_dl.index[self.piksi_hw_rev].has_key('fw'):
-          fw_update_prompt.text = \
-            "New Piksi firmware available.\n\n" + \
-            "Please use the Firmware Update tab to update.\n\n" + \
-            "Newest Firmware Version :\n\t%s\n\n" % \
-                self.update_dl.index[self.piksi_hw_rev]['fw']['version']
-        else:
-          fw_update_prompt.text = \
-            "New Piksi firmware available.\n\n" + \
-            "Please use the Firmware Update tab to update.\n\n" + \
-            "Newest STM Version :\n\t%s\n\n" % \
-                self.update_dl.index[self.piksi_hw_rev]['stm_fw']['version'] + \
-            "Newest SwiftNAP Version :\n\t%s\n\n" % \
-                self.update_dl.index[self.piksi_hw_rev]['nap_fw']['version']
-
+        fw_update_prompt.text = \
+          "New Piksi firmware available.\n\n" + \
+          "Please use the Firmware Update tab to update.\n\n" + \
+          "Newest Firmware Version :\n\t%s\n\n" % \
+              self.update_dl.index[self.piksi_hw_rev]['fw']['version']
         fw_update_prompt.run()
 
   def _get_latest_version_info(self):
