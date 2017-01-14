@@ -157,6 +157,7 @@ class SettingsView(HasTraits):
     Skip reading of the settings (defaults to False). Intended for
     use when reading from network connections.
   """
+  enumindex = Int()
   show_auto_survey = Bool(False)
   settings_yaml = list()
   auto_survey = SVGButton(
@@ -294,6 +295,7 @@ class SettingsView(HasTraits):
       # Settings output from Piksi is terminated by an empty message.
       # Bundle up our list and display it.
       self.settings_display_setup()
+      return
 
     section, setting, value, format_type = sbp_msg.payload[2:].split('\0')[:4]
     self.ordering_counter += 1
@@ -322,8 +324,9 @@ class SettingsView(HasTraits):
         self.settings[section][setting] = Setting(setting, section, value,
                                                   settings=self
                                                  )
-
     self.enumindex += 1
+
+  def _enumindex_changed(self):
     self.link(MsgSettingsReadByIndexReq(index=self.enumindex))
 
   def piksi_startup_callback(self, sbp_msg, **metadata):
