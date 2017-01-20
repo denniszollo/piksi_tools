@@ -80,7 +80,7 @@
   units:
   default value: 'True'
   Description: enable/disable 5v antenna bias.
-  Notes: Most active antennas require an antenna bias in order to Power
+  Notes: Most active antennas require an antenna bias in order to power
     the amplifier in the antenna.
 
 - group: sbp
@@ -364,7 +364,7 @@
   default value:
   enumerated possible values:
   Description: The mac address of the Piksi
-  Notes: Read-only setting
+  Notes: This is a read only setting.
 
 - group: system_info
   name: uuid
@@ -416,57 +416,63 @@
 
 - group: system_info
   name: loader_build_id
+  expert: true
   type: string
   units:
   default value:
   enumerated possible values:
   Description: build id for loader (uboot)
-  Notes: read-only setting
+  Notes: This is a read only setting
 
 - group: system_info
   name: loader_build_date
+  expert: true
   type: string
   units:
   default value:
   enumerated possible values:
   Description: build date for loader (uboot)
-  Notes: read-only setting
+  Notes: This is a read only setting.
 
 - group: system_info
   name: nap_build_id
+  expert: true
   type: string
   units:
   default value:
   enumerated possible values:
   Description: build id for SwiftNap FPGA bitstream
-  Notes: read-only setting
+  Notes: This is a read only setting.
 
 - group: system_info
   name: nap_build_date
+  expert: true
   type: string
   units:
   default value:
   enumerated possible values:
   Description: build date for SwiftNap FPGA bitstream
-  Notes: read-only setting
+  Notes: This is a read only setting.
 
 - group: system_info
   name: pfwp_build_id
   type: string
+  expert: true
   units:
   default value:
   enumerated possible values:
   Description: build id for real-time GNSS firmware (piksi_firmware)
-  Notes: read-only setting
+  Notes: This is a read only setting.
 
 - group: system_info
   name: pfwp_build_date
   type: string
+  expert: true
   units:
   default value:
   enumerated possible values:
   Description: build date for real-time GNSS firmware (piksi_firmware)
-  Notes: read-only setting
+  Notes: This is a read only setting.
 
 - group: system_info
   name: sbp_sender_id
@@ -475,25 +481,7 @@
   default value:
   enumerated possible values:
   Description: The SBP sender ID for any messages sent by the device
-  Notes: read-only setting
-
-- group: system_info
-  name: nap_version
-  type: string
-  units:
-  default value:
-  enumerated possible values:
-  Description: Version of the SwiftNAP FPGA firmware.
-  Notes:
-
-- group: system_info
-  name: nap_channels
-  type: integer
-  units:
-  default value:
-  enumerated possible values:
-  Description: Number of tracking channels in the SwiftNAP firmware
-  Notes:
+  Notes: This is a read only setting.
 
 - group: system_monitor
   name: heartbeat_period_milliseconds
