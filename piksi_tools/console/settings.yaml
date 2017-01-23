@@ -85,6 +85,7 @@
 
 - group: sbp
   name: obs_msg_max_size
+  expert: True
   type: integer
   units: bytes
   default value: '102'
@@ -319,7 +320,7 @@
 - group: solution
   name: elevation_mask
   type: float
-  expert: true
+  expert: false
   units: degrees
   default value: '10'
   enumerated possible values:
