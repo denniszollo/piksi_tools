@@ -23,16 +23,12 @@
 \numberwithin{table}{subsection}
 \numberwithin{field}{subsection}
 
-\usepackage{draftwatermark}
-\SetWatermarkLightness{0.9}
-\SetWatermarkScale{1}
-
 \renewcommand{\regLabelFamily}{}
 \renewcommand\theversion{((( version )))}
 
 % ---------------------------------------------------------------------------
 \title{Piksi Settings}
-\mysubtitle{Piksi Firmware version  \theversion}
+\mysubtitle{Piksi Multi Firmware version  \theversion}
 \author{Swift Navigation}
 \date{\today}
 
@@ -90,7 +86,7 @@ Piksi Firmware has a number of settings that can be controlled by the end user v
     \hbadness=20000
     ((*- for key,value in m.iteritems() *))
     ((*- if(key is defined and key != 'Notes' and key != 'Description' and value is defined and value != 'True') *))
-    (((key|escape_tex_exp|no_us))) & $(((value|escape_tex_exp|no_us)))$ \\
+    (((key|escape_tex_exp|no_us))) & (((value|escape_tex_exp|no_us))) \\
     ((*- endif *))
     ((*- endfor *))
     \midrule
