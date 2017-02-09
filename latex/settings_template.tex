@@ -54,7 +54,7 @@ Piksi Firmware has a number of settings that can be controlled by the end user v
     \textbf{(((g|escape_tex_exp|no_us)))} & & \\
     ((*- for m in setting *))
     ((*- if m.group==g *))
-     & (((m.name|escape_tex_exp|no_us))) & (((m.Description|escape_tex_exp|no_us))) \\
+     & \hyperref[sec:(((m.group + m.name)))]{\texttt{(((m.name|escape_tex_exp|no_us)))}} & (((m.Description|escape_tex_exp|no_us))) \\ 
     ((*- endif *))
     ((*- endfor *))
     ((*- endfor *))
@@ -73,6 +73,7 @@ Piksi Firmware has a number of settings that can be controlled by the end user v
 ((* for m in setting *))
 ((* if m.group==g *))
 ((* block settings_detail scoped *))
+\label{sec:(((m.group + m.name)))}
 \subsubsection{(((m.name|escape_tex_exp|no_us)))}
 {
 \textbf{Description:}
