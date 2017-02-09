@@ -59,13 +59,18 @@ def main():
       try:
         for pattern, replacement in LATEX_SUBS_ALLOW_EXPONENTS:
             newval = pattern.sub(replacement, newval)
-        return newval
+        if newval[0:1].isdigit():
+          return '$' + newval + "$"
+        else:
+          return newval
       except TypeError:
         if isinstance(value, bool): 
            if value:
             return "True"
            else:
             return "False"
+        if isinstance(value, str):
+          return value
         pass
       return None
 
@@ -84,7 +89,7 @@ def main():
 
   latex_template = jenv.get_template('settings_template.tex')
   with open("settings_out.tex", 'w') as f:
-    f.write(latex_template.render(groups=sorted(groups), setting=sorted(settings.list_of_dicts), version='v0.22'))
+    f.write(latex_template.render(groups=sorted(groups), setting=sorted(settings.list_of_dicts), version='v1.0.11'))
 
   import subprocess
 
