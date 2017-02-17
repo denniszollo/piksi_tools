@@ -72,10 +72,16 @@ def extractSBP(filename):
       msg_len = last_m.msg_len
       binary = last_m.binary
       assert binary, "binary empty"
+      bin_data_conv = bytearray(last_m.d1[0:msg_len])
+      print "len binary is {0} and len of reconstructed is {1}".format(len(binary) , len(bin_data_conv))
       timestamp = getattr(last_m, '_timestamp', 0.0)
       msg_type = last_m.msg_type
       sender_id = last_m.sender_id
       bin_data = bytearray(last_m.binary[SBR1_DATASTART:SBR1_DATASTART+msg_len])
+      for each in range(0, msg_len):
+        print "byte {0}".format(each)
+        print bin_data[each]
+        print bin_data_conv[each]
       last_m = m
     elif last_m and last_m.get_type() == "SBR2" and m.get_type() == "SBR1":
       # just save current message as the last_m.
