@@ -10,8 +10,6 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 import os
-import piksi_tools.serial_link as s
-import sbp.client as sbpc
 import signal
 import sys
 
@@ -21,7 +19,14 @@ import datetime
 import time
 
 from os.path import expanduser
-from piksi_tools.serial_link import swriter, get_uuid, DEFAULT_BASE
+from piksi_tools.console.utils import determine_path, get_mode, mode_dict, EMPTY_STR
+
+os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(determine_path(), 'cacert.pem')
+
+import sbp.client as sbpc
+import piksi_tools.serial_link as s
+
+from piksi_tools.serial_link import swriter, get_uuid, DEFAULT_BASE, base_cl_options, get_ports
 from piksi_tools.version import VERSION as CONSOLE_VERSION
 from piksi_tools.heartbeat import Heartbeat
 from sbp.client.drivers.pyftdi_driver import PyFTDIDriver
@@ -50,7 +55,7 @@ def get_args():
   """
   Get and parse arguments.
   """
-  parser = s.base_cl_options(override_arg_parse=ConsoleArgumentParser, add_help=False)
+  parser = base_cl_options(override_arg_parse=ConsoleArgumentParser, add_help=False)
   parser.description = 'Swift Console'
   parser.add_argument("-i", "--initloglevel",
                       default=[None], nargs=1,
@@ -97,7 +102,6 @@ import logging
 logging.basicConfig()
 from piksi_tools.console.output_list import OutputList, LogItem, str_to_log_level, \
   SYSLOG_LEVELS, DEFAULT_LOG_LEVEL_FILTER
-from piksi_tools.console.utils import determine_path, get_mode, mode_dict, EMPTY_STR
 from piksi_tools.console.deprecated import DeprecatedMessageHandler
 
 # When bundled with pyInstaller, PythonLexer can't be found. The problem is
@@ -122,10 +126,7 @@ if ETSConfig.toolkit == 'qt4':
 from pyface.image_resource import ImageResource
 from threading import Thread, Event
 
-basedir = determine_path()
-icon = ImageResource('icon', search_path=['images', os.path.join(basedir, 'images')])
-
-os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir, 'cacert.pem')
+icon = ImageResource('icon', search_path=['images', os.path.join(determine_path(), 'images')])
 
 from piksi_tools.console.tracking_view import TrackingView
 from piksi_tools.console.solution_view import SolutionView
@@ -690,7 +691,7 @@ class PortChooser(HasTraits):
 
   def __init__(self, baudrate=None):
     try:
-      self.ports = [p for p, _, _ in s.get_ports()]
+      self.ports = [p for p, _, _ in get_ports()]
       if baudrate not in BAUD_LIST:
         self.choose_baud = False
       self.baudrate = baudrate
