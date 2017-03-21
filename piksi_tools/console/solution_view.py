@@ -168,8 +168,11 @@ class SolutionView(HasTraits):
       GUI.invoke_later(self.pos_llh_callback, sbp_msg)
   
   def age_corrections_callback(self, sbp_msg, **metadata):
-    age_msg = MsgAgeCorrections(sbp_msg) 
-    self.age_corrections = age_msg.age/10.0
+    age_msg = MsgAgeCorrections(sbp_msg)
+    if age_msg.age != 0xFFFF
+      self.age_corrections = age_msg.age/10.0
+    else:
+      self.age_corrections = None
 
   def update_table(self):
     self._table_list = self.table_spp.items()
@@ -271,7 +274,7 @@ class SolutionView(HasTraits):
 
     pos_table.append(('Pos Flags', '0x%03x' % soln.flags))
     pos_table.append(('Pos Fix Mode', mode_dict[self.last_pos_mode]))
-    if self.age_corrections != None and self.age_corrections != 0xFFFF:
+    if self.age_corrections != None:
       pos_table.append(('Corr. Age [s]', self.age_corrections))
 
     self.auto_survey()

@@ -145,9 +145,11 @@ class BaselineView(HasTraits):
     self.last_hyp_update = time.time()
 
   def age_corrections_callback(self, sbp_msg, **metadata):
-    age_msg = MsgAgeCorrections(sbp_msg) 
-    self.age_corrections = age_msg.age/10.0
- 
+    age_msg = MsgAgeCorrections(sbp_msg)
+    if age_msg.age != 0xFFFF
+      self.age_corrections = age_msg.age/10.0
+    else:
+      self.age_corrections = None
 
   def _baseline_callback_ned(self, sbp_msg, **metadata):
     # Updating an ArrayPlotData isn't thread safe (see chaco issue #9), so
@@ -277,7 +279,7 @@ class BaselineView(HasTraits):
     
     table.append(('Flags', '0x%02x' % soln.flags))
     table.append(('Mode', mode_dict[self.last_mode]))
-    if self.age_corrections != None and self.age_corrections != 0xFFFF:
+    if self.age_corrections != None:
       table.append(('Corr. Age [s]', self.age_corrections))
     self.table = table
     # Rotate array, deleting oldest entries to maintain
