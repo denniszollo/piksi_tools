@@ -19,7 +19,7 @@ from pyface.api import GUI
 from piksi_tools.console.gui_utils import plot_square_axes
 from piksi_tools.console.utils import determine_path, mode_dict, get_mode, color_dict, FLOAT_MODE, \
                                       SPP_MODE, DGNSS_MODE, NO_FIX_MODE, FIXED_MODE, EMPTY_STR, \
-                                      sopen, log_time_strings, datetime_2_str       
+                                      sopen, log_time_strings, datetime_2_str, call_repeatedly       
 
 import math
 import os
@@ -43,7 +43,7 @@ class BaselineView(HasTraits):
   python_console_cmds = Dict()
 
   table = List()
-
+  
   logging_b = Bool(False)
   directory_name_b = File
 
@@ -123,6 +123,7 @@ class BaselineView(HasTraits):
     self.plot_data.set_data('cur_dgnss_d', [])
 
   def _clear_history(self):
+    self.plot_data.set_data('t', [])
     self.plot_data.set_data('n_fixed', [])
     self.plot_data.set_data('e_fixed', [])
     self.plot_data.set_data('d_fixed', [])
@@ -134,11 +135,10 @@ class BaselineView(HasTraits):
     self.plot_data.set_data('d_dgnss', [])
     
   def _clear_button_fired(self):
-    self.n[:] = np.NAN
-    self.e[:] = np.NAN
-    self.d[:] = np.NAN
-    self.mode[:] = np.NAN
-    self.plot_data.set_data('t', [])
+    self.n = [None] * self.plot_history_max
+    self.e = [None] * self.plot_history_max
+    self.d = [None] * self.plot_history_max
+    self.mode = [None] * self.plot_history_max
     self._clear_history()
     self._reset_remove_current()
     
@@ -161,7 +161,7 @@ class BaselineView(HasTraits):
       GUI.invoke_later(self.baseline_callback, sbp_msg)
 
   def update_table(self):
-    self._table_list = self.table.items()
+    self.table = self.local_table
 
   def gps_time_callback(self, sbp_msg, **metadata):
     if sbp_msg.msg_type == SBP_MSG_GPS_TIME_DEP_A:
@@ -295,66 +295,82 @@ class BaselineView(HasTraits):
       table.append(('Heading', self.heading)) 
     if self.age_corrections != None:
       table.append(('Corr. Age [s]', self.age_corrections))
-    self.table = table
+    self.local_table = table
     # Rotate array, deleting oldest entries to maintain
     # no more than N in plot
-    self.n[1:] = self.n[:-1]
-    self.e[1:] = self.e[:-1]
-    self.d[1:] = self.d[:-1]
-    self.mode[1:] = self.mode[:-1]
+    self.n.pop(0)
+    self.e.pop(0)
+    self.d.pop(0)
+    self.mode.pop(0)
+    
+    self.mode.append(self.last_mode)
 
     # Insert latest position
     if self.last_mode > 1:
-      self.n[0], self.e[0], self.d[0] = soln.n, soln.e, soln.d
+      self.n.append(soln.n)
+      self.e.append(soln.e)
+      self.d.append(soln.d)
     else:
-      self.n[0], self.e[0], self.d[0] = [np.NAN, np.NAN, np.NAN]
-    self.mode[0] = self.last_mode
-    
+      self.n.append(None)
+      self.e.append(None)
+      self.d.append(None)
+   
+  def solution_draw(self):
+    if self.running:
+      GUI.invoke_later(self._solution_draw)
+    self.update_table()
+  
+  def _solution_draw(self): 
     self._clear_history()
     if np.any(self.mode):
-      float_indexer = (self.mode == FLOAT_MODE)
-      fixed_indexer = (self.mode == FIXED_MODE)
-      dgnss_indexer = (self.mode == DGNSS_MODE)
+      n = np.array(self.n, dtype=np.float)
+      e = np.array(self.e, dtype=np.float)
+      d = np.array(self.d, dtype=np.float)
+      mode = np.array(self.mode, dtype=np.float)
+ 
+      float_indexer = (mode == FLOAT_MODE)
+      fixed_indexer = (mode == FIXED_MODE)
+      dgnss_indexer = (mode == DGNSS_MODE)
 
       if np.any(fixed_indexer):
-        self.plot_data.set_data('n_fixed', self.n[fixed_indexer])
-        self.plot_data.set_data('e_fixed', self.e[fixed_indexer])
-        self.plot_data.set_data('d_fixed', self.d[fixed_indexer])
+        self.plot_data.set_data('n_fixed', n[fixed_indexer])
+        self.plot_data.set_data('e_fixed', e[fixed_indexer])
+        self.plot_data.set_data('d_fixed', d[fixed_indexer])
       if np.any(float_indexer):
-        self.plot_data.set_data('n_float', self.n[float_indexer])
-        self.plot_data.set_data('e_float', self.e[float_indexer])
-        self.plot_data.set_data('d_float', self.d[float_indexer])
+        self.plot_data.set_data('n_float', n[float_indexer])
+        self.plot_data.set_data('e_float', e[float_indexer])
+        self.plot_data.set_data('d_float', d[float_indexer])
       if np.any(dgnss_indexer):
-        self.plot_data.set_data('n_dgnss', self.n[dgnss_indexer])
-        self.plot_data.set_data('e_dgnss', self.e[dgnss_indexer])
-        self.plot_data.set_data('d_dgnss', self.d[dgnss_indexer])
+        self.plot_data.set_data('n_dgnss', n[dgnss_indexer])
+        self.plot_data.set_data('e_dgnss', e[dgnss_indexer])
+        self.plot_data.set_data('d_dgnss', d[dgnss_indexer])
       
       # Update our last solution icon 
       if self.last_mode == FIXED_MODE:
         self._reset_remove_current()
-        self.plot_data.set_data('cur_fixed_n', [soln.n])
-        self.plot_data.set_data('cur_fixed_e', [soln.e])
-        self.plot_data.set_data('cur_fixed_d', [soln.d])
+        self.plot_data.set_data('cur_fixed_n', [self.last_soln.n])
+        self.plot_data.set_data('cur_fixed_e', [self.last_soln.e])
+        self.plot_data.set_data('cur_fixed_d', [self.last_soln.d])
       elif self.last_mode == FLOAT_MODE:
         self._reset_remove_current()
-        self.plot_data.set_data('cur_float_n', [soln.n])
-        self.plot_data.set_data('cur_float_e', [soln.e])
-        self.plot_data.set_data('cur_float_d', [soln.d])
+        self.plot_data.set_data('cur_float_n', [self.last_soln.n])
+        self.plot_data.set_data('cur_float_e', [self.last_soln.e])
+        self.plot_data.set_data('cur_float_d', [self.last_soln.d])
       elif self.last_mode == DGNSS_MODE:
         self._reset_remove_current()
-        self.plot_data.set_data('cur_dgnss_n', [soln.n])
-        self.plot_data.set_data('cur_dgnss_e', [soln.e])
-        self.plot_data.set_data('cur_dgnss_d', [soln.d])
+        self.plot_data.set_data('cur_dgnss_n', [self.last_soln.n])
+        self.plot_data.set_data('cur_dgnss_e', [self.last_soln.e])
+        self.plot_data.set_data('cur_dgnss_d', [self.last_ssoln.d])
       else:
         pass
     # make the zoomall win over the position centered button 
     # position centered button has no effect when zoom all enabled  
 
-    if not self.zoomall and self.position_centered:
+    if not self.zoomall and self.position_centered and self.last_mode!=0:
       d = (self.plot.index_range.high - self.plot.index_range.low) / 2.
-      self.plot.index_range.set_bounds(soln.e - d, soln.e + d)
+      self.plot.index_range.set_bounds(self.last_soln.e - d, self.last_soln.e + d)
       d = (self.plot.value_range.high - self.plot.value_range.low) / 2.
-      self.plot.value_range.set_bounds(soln.n - d, soln.n + d)
+      self.plot.value_range.set_bounds(self.last_soln.n - d, self.last_soln.n + d)
 
     if self.zoomall:
       plot_square_axes(self.plot, ('e_fixed', 'e_float', 'e_dgnss'), ('n_fixed', 'n_float', 'n_dgnss'))
@@ -378,10 +394,10 @@ class BaselineView(HasTraits):
                                    cur_dgnss_e=[], cur_dgnss_n=[], cur_dgnss_d=[])
 
     self.plot_history_max = plot_history_max
-    self.n = np.zeros(plot_history_max)
-    self.e = np.zeros(plot_history_max)
-    self.d = np.zeros(plot_history_max)
-    self.mode = np.zeros(plot_history_max)
+    self.n = [None] * plot_history_max
+    self.e = [None] * plot_history_max
+    self.d = [None] * plot_history_max
+    self.mode = [None] * plot_history_max
 
     self.plot = Plot(self.plot_data)
     pts_float = self.plot.plot(('e_float', 'n_float'),
@@ -453,7 +469,7 @@ class BaselineView(HasTraits):
     self.age_corrections = None
     self.heading = None
     self.nsec = 0
-    
+    self.local_table = [] 
 
     self.link = link
     self.link.add_callback(self._baseline_callback_ned, [SBP_MSG_BASELINE_NED, SBP_MSG_BASELINE_NED_DEP_A])
@@ -463,6 +479,7 @@ class BaselineView(HasTraits):
     self.link.add_callback(self.utc_time_callback, [SBP_MSG_UTC_TIME])
     self.link.add_callback(self.age_corrections_callback, SBP_MSG_AGE_CORRECTIONS)
 
+    call_repeatedly(0.2, self.solution_draw)
     self.python_console_cmds = {
       'baseline': self
     }

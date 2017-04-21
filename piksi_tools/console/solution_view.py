@@ -20,7 +20,7 @@ from pyface.api import GUI
 from piksi_tools.console.gui_utils import plot_square_axes, MultilineTextEditor
 from piksi_tools.console.utils import determine_path, get_mode, mode_dict, color_dict, sopen,\
                                       EMPTY_STR, SPP_MODE, FLOAT_MODE, DGNSS_MODE, FIXED_MODE, \
-                                      log_time_strings, datetime_2_str
+                                      log_time_strings, datetime_2_str, call_repeatedly
 
 import math
 import os
@@ -155,14 +155,13 @@ class SolutionView(HasTraits):
     self.plot_data.set_data('alt_fixed', [])
 
   def _clear_button_fired(self):
-    self.tows = np.empty(self.plot_history_max)
-    self.lats = np.empty(self.plot_history_max)
-    self.lngs = np.empty(self.plot_history_max)
-    self.alts = np.empty(self.plot_history_max)
-    self.modes = np.empty(self.plot_history_max)
+    self.tows = [None] * self.plot_history_max
+    self.lats = [None] * self.plot_history_max
+    self.lngs = [None] * self.plot_history_max
+    self.alts = [None] * self.plot_history_max
+    self.modes = [None] * self.plot_history_max
     self._clear_history()
     self._reset_remove_current()
-
 
   def _pos_llh_callback(self, sbp_msg, **metadata):
     # Updating an ArrayPlotData isn't thread safe (see chaco issue #9), so
@@ -178,7 +177,7 @@ class SolutionView(HasTraits):
       self.age_corrections = None
 
   def update_table(self):
-    self._table_list = self.table_spp.items()
+    self.table = self.pos_table + self.vel_table + self.dops_table
 
   def auto_survey(self):
     if self.last_soln.flags != 0: 
@@ -279,87 +278,97 @@ class SolutionView(HasTraits):
     pos_table.append(('Pos Fix Mode', mode_dict[self.last_pos_mode]))
     if self.age_corrections != None:
       pos_table.append(('Corr. Age [s]', self.age_corrections))
+    
+    # set-up table variables
+    self.pos_table = pos_table
 
     self.auto_survey()
-
     # setup_plot variables
-    self.lats[1:] = self.lats[:-1]
-    self.lngs[1:] = self.lngs[:-1]
-    self.alts[1:] = self.alts[:-1]
-    self.tows[1:] = self.tows[:-1]
-    self.modes[1:] = self.modes[:-1]
+    self.lats.pop(0) 
+    self.lngs.pop(0)
+    self.alts.pop(0)
+    self.tows.pop(0)
+    self.modes.pop(0) 
 
-    self.lats[0] = soln.lat
-    self.lngs[0] = soln.lon
-    self.alts[0] = soln.height
-    self.tows[0] = soln.tow
-    self.modes[0] = self.last_pos_mode
+    if self.last_pos_mode > 1:
+      self.lats.append(soln.lat)
+      self.lngs.append(soln.lon)
+      self.alts.append(soln.height)
+      self.tows.append(soln.tow)
+    else:
+      self.lats.append(None)
+      self.lngs.append(None)
+      self.alts.append(None)
+    self.modes.append(self.last_pos_mode)
 
-    self.lats = self.lats[-self.plot_history_max:]
-    self.lngs = self.lngs[-self.plot_history_max:]
-    self.alts = self.alts[-self.plot_history_max:]
-    self.tows = self.tows[-self.plot_history_max:]
-    self.modes = self.modes[-self.plot_history_max:]
+    assert len(self.lats) == self.plot_history_max
+  #  self.lngs = self.lngs[-self.plot_history_max:]
+  #  self.alts = self.alts[-self.plot_history_max:]
+  #  self.tows = self.tows[-self.plot_history_max:]
+  #  self.modes = self.modes[-self.plot_history_max:]
 
+  def solution_draw(self):
+    if self.running:
+      GUI.invoke_later(self._solution_draw)
+    self.update_table
+ 
+  def _solution_draw(self):
     # SPP
-    spp_indexer, dgnss_indexer, float_indexer, fixed_indexer = None, None, None, None
+    modes = np.array(self.modes,dtype=np.float)
+    lats = np.array(self.lats, dtype=np.float)
+    lngs = np.array(self.lngs, dtype=np.float)
+    alts = np.array(self.alts, dtype=np.float)
+    tows = np.array(self.tows, dtype=np.float)
     self._clear_history()
     if np.any(self.modes):
-      spp_indexer = (self.modes == SPP_MODE)
-      dgnss_indexer = (self.modes == DGNSS_MODE)
-      float_indexer = (self.modes == FLOAT_MODE)
-      fixed_indexer = (self.modes == FIXED_MODE)
+      spp_indexer = (modes == SPP_MODE)
+      dgnss_indexer = (modes == DGNSS_MODE)
+      float_indexer = (modes == FLOAT_MODE)
+      fixed_indexer = (modes == FIXED_MODE)
     
     # make sure that there is at least one true in indexer before setting
       if any(spp_indexer):
-        self.plot_data.set_data('lat_spp', self.lats[spp_indexer])
-        self.plot_data.set_data('lng_spp', self.lngs[spp_indexer])
-        self.plot_data.set_data('alt_spp', self.alts[spp_indexer])
+        self.plot_data.set_data('lat_spp', lats[spp_indexer])
+        self.plot_data.set_data('lng_spp', lngs[spp_indexer])
+        self.plot_data.set_data('alt_spp', alts[spp_indexer])
       if any(dgnss_indexer):
-        self.plot_data.set_data('lat_dgnss', self.lats[dgnss_indexer])
-        self.plot_data.set_data('lng_dgnss', self.lngs[dgnss_indexer])
-        self.plot_data.set_data('alt_dgnss', self.alts[dgnss_indexer])
+        self.plot_data.set_data('lat_dgnss', lats[dgnss_indexer])
+        self.plot_data.set_data('lng_dgnss', lngs[dgnss_indexer])
+        self.plot_data.set_data('alt_dgnss', alts[dgnss_indexer])
       if any(float_indexer):
-        self.plot_data.set_data('lat_float', self.lats[float_indexer])
-        self.plot_data.set_data('lng_float', self.lngs[float_indexer])
-        self.plot_data.set_data('alt_float', self.alts[float_indexer])
+        self.plot_data.set_data('lat_float', lats[float_indexer])
+        self.plot_data.set_data('lng_float', lngs[float_indexer])
+        self.plot_data.set_data('alt_float', alts[float_indexer])
       if any(fixed_indexer):
-        self.plot_data.set_data('lat_fixed', self.lats[fixed_indexer])
-        self.plot_data.set_data('lng_fixed', self.lngs[fixed_indexer])
-        self.plot_data.set_data('alt_fixed', self.alts[fixed_indexer])
+        self.plot_data.set_data('lat_fixed', lats[fixed_indexer])
+        self.plot_data.set_data('lng_fixed', lngs[fixed_indexer])
+        self.plot_data.set_data('alt_fixed', alts[fixed_indexer])
       
       # update our "current solution" icon 
       if self.last_pos_mode == SPP_MODE:
         self._reset_remove_current()
-        self.plot_data.set_data('cur_lat_spp', [soln.lat])
-        self.plot_data.set_data('cur_lng_spp', [soln.lon])
+        self.plot_data.set_data('cur_lat_spp', [self.last_soln.lat])
+        self.plot_data.set_data('cur_lng_spp', [self.last_soln.lon])
       elif self.last_pos_mode == DGNSS_MODE:
         self._reset_remove_current()
-        self.plot_data.set_data('cur_lat_dgnss', [soln.lat])
-        self.plot_data.set_data('cur_lng_dgnss', [soln.lon])
+        self.plot_data.set_data('cur_lat_dgnss', [self.last_soln.lat])
+        self.plot_data.set_data('cur_lng_dgnss', [self.last_soln.lon])
       elif self.last_pos_mode == FLOAT_MODE:
         self._reset_remove_current()
-        self.plot_data.set_data('cur_lat_float', [soln.lat])
-        self.plot_data.set_data('cur_lng_float', [soln.lon])
+        self.plot_data.set_data('cur_lat_float', [self.last_soln.lat])
+        self.plot_data.set_data('cur_lng_float', [self.last_soln.lon])
       elif self.last_pos_mode == FIXED_MODE:
         self._reset_remove_current()
-        self.plot_data.set_data('cur_lat_fixed', [soln.lat])
-        self.plot_data.set_data('cur_lng_fixed', [soln.lon])
+        self.plot_data.set_data('cur_lat_fixed', [self.last_soln.lat])
+        self.plot_data.set_data('cur_lng_fixed', [self.last_soln.lon])
       else:
         pass
 
-    # set-up table variables
-    self.pos_table = pos_table
-    self.table = self.pos_table + self.vel_table + self.dops_table
-
-    # TODO: figure out how to center the graph now that we have two separate messages
-    # when we selectively send only SPP, the centering function won't work anymore
-
     if not self.zoomall and self.position_centered:
       d = (self.plot.index_range.high - self.plot.index_range.low) / 2.
-      self.plot.index_range.set_bounds(soln.lon - d, soln.lon + d)
+      self.plot.index_range.set_bounds(self.last_soln.lon - d, self.last_soln.lon + d)
       d = (self.plot.value_range.high - self.plot.value_range.low) / 2.
-      self.plot.value_range.set_bounds(soln.lat - d, soln.lat + d)
+      self.plot.value_range.set_bounds(self.last_soln.lat - d, self.last_soln.lat + d)
     if self.zoomall:
       plot_square_axes(self.plot, ('lng_spp', 'lng_dgnss', 'lng_float','lng_fixed'), 
                         ('lat_spp', 'lat_dgnss', 'lat_float','lat_fixed'))
@@ -443,7 +452,6 @@ class SolutionView(HasTraits):
         ('Vel. D', EMPTY_STR),
       ]
     self.vel_table.append(('Vel Flags', '0x%03x' % flags))
-    self.table = self.pos_table + self.vel_table + self.dops_table
 
   def gps_time_callback(self, sbp_msg, **metadata):
     if sbp_msg.msg_type == SBP_MSG_GPS_TIME_DEP_A:
@@ -480,11 +488,11 @@ class SolutionView(HasTraits):
   def __init__(self, link, dirname=''):
     super(SolutionView, self).__init__()
 
-    self.lats = np.zeros(self.plot_history_max)
-    self.lngs = np.zeros(self.plot_history_max)
-    self.alts = np.zeros(self.plot_history_max)
-    self.tows = np.zeros(self.plot_history_max)
-    self.modes = np.zeros(self.plot_history_max)
+    self.lats = [None] * self.plot_history_max
+    self.lngs = [None] * self.plot_history_max
+    self.alts = [None] * self.plot_history_max
+    self.tows = [None] * self.plot_history_max
+    self.modes = [None] * self.plot_history_max
     self.log_file = None
     self.directory_name_v = dirname
     self.directory_name_p = dirname
@@ -553,13 +561,14 @@ class SolutionView(HasTraits):
     self.plot.overlays.append(zt)
 
     self.link = link
-    self.link.add_callback(self._pos_llh_callback, [SBP_MSG_POS_LLH_DEP_A, SBP_MSG_POS_LLH])
+    self.link.add_callback(self.pos_llh_callback, [SBP_MSG_POS_LLH_DEP_A, SBP_MSG_POS_LLH])
     self.link.add_callback(self.vel_ned_callback, [SBP_MSG_VEL_NED_DEP_A, SBP_MSG_VEL_NED])
     self.link.add_callback(self.dops_callback, [SBP_MSG_DOPS_DEP_A, SBP_MSG_DOPS])
     self.link.add_callback(self.gps_time_callback, [SBP_MSG_GPS_TIME_DEP_A, SBP_MSG_GPS_TIME])
     self.link.add_callback(self.utc_time_callback, [SBP_MSG_UTC_TIME])
     self.link.add_callback(self.age_corrections_callback, SBP_MSG_AGE_CORRECTIONS)
 
+    call_repeatedly(0.2, self.solution_draw)
     self.week = None
     self.utc_time = None
     self.age_corrections = None
