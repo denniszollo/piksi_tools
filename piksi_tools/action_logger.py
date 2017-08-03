@@ -4,8 +4,8 @@ import piksi_tools.diagnostics as ptd
 from sbp.client import Handler, Framer, Forwarder
 from sbp.logging import *
 from sbp.tracking import MsgTrackingState, MsgTrackingStateDepA
-from sbp.piksi import SBP_MSG_MASK_SATELLITE, SBP_MSG_RESET, MsgMaskSatellite
-from sbp.system import SBP_MSG_HEARTBEAT
+from sbp.piksi import SBP_MSG_MASK_SATELLITE, SBP_MSG_RESET, MsgMaskSatellite, MsgReset
+from sbp.system import SBP_MSG_HEARTBEAT, MsgStartup, MsgHeartbeat
 from sbp.table import dispatch
 
 import time
@@ -14,9 +14,8 @@ import random
 import threading
 import struct
 
-DEFAULT_POLL_INTERVAL = 60 # Seconds
+DEFAULT_POLL_INTERVAL = 300 # Seconds
 DEFAULT_MIN_SATS = 5 # min satellites to try and retain
-
 
 class LoopTimer(object):
   """
@@ -51,6 +50,7 @@ class LoopTimer(object):
     """
     Starts the periodic timer thread.
     """
+    print "in start"
     self.thread.start()
 
   def cancel(self):
@@ -58,8 +58,13 @@ class LoopTimer(object):
     Cancels any current timer threads.
     """
     self.thread.cancel()
+    self.thread = None
 
-
+  def reset(self):
+    print "in reset"
+    self.cancel()
+    self.thread = threading.Timer(self.interval, self.handle_function)
+    self.start()
 
 class TestState(object):
   """
@@ -72,15 +77,24 @@ class TestState(object):
   filename : string
     File to log to.
   """
-  def __init__(self, handler):
+  def __init__(self, handler, interval):
     self.init_time = time.time()
     self.handler = handler
+    self.timer = LoopTimer(interval, self.action)
+    handler.add_callback(self.process_message)
+  
+  def __enter__(self):
+    self.timer.start()
+    return self
 
-  def process_message(self, msg):
+  def __exit__(self, *args):
+    self.timer.cancel()
+  
+  def process_message(self, msg, **kwargs):
     """
     Stub for processing messages from device. Should be overloaded in sublcass.
     """
-    raise NotImplementedError("process_message not implemented!")
+    raise NotImplementedError("action not implemented!")
 
   def action(self):
     """
@@ -88,6 +102,111 @@ class TestState(object):
     """
     raise NotImplementedError("action not implemented!")
 
+
+
+class BootloadTestState(TestState):
+  """
+  Super class for representing state and state-based actions during logging.
+
+  Parameters
+  ----------
+  handler: sbp.client.handler.Handler
+      handler for SBP transfer to/from Piksi.
+  filename : string
+    File to log to.
+  """
+  def __init__(self, handler, interval, filename='out.csv'):
+    super(BootloadTestState, self).__init__(handler, interval)
+    self.state=-1
+    self.NUM_STATES = 9
+    self.STATE_DESC_DICT = {
+     -1: 'initialization of class / invalid',
+     0: 'reset commanded',
+     1: 'got first valid sbp message',
+     2: 'got MsgStartup',
+     3: 'got first heartbeat',
+     4: 'upgrade actually started',
+     5: 'upgrade completed successefully',
+     6: 'timed out waiting for upgrade completed',
+     7: 'Nap verification failed',
+     8: 'Upgrade failed (upgrade_tool return code wrong)'}
+    self.filename = filename
+    self.file = open(self.filename, 'w')
+    self.file.write(','.join([str(self.STATE_DESC_DICT[x]) for x in range(0, self.NUM_STATES)])+ '\n')
+    self.file.close()
+    self.reset_time = 0
+    self.state_dict = None
+
+  def log_state_trans(self):
+    self.state_dict[self.state] = time.time() - self.reset_time
+    print "state transition to state {0}, after {1} seconds". format(self.state, self.state_dict[self.state])
+
+  def clear_state(self):
+    self.state = 0
+    self.state_dict={0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0}
+
+  def log_state_dict(self):
+    self.file = open(self.filename, 'a')
+    self.file.write(','.join([str(self.state_dict[x]) for x in range(0, self.NUM_STATES)])+ '\n')
+  
+  def __enter__(self, *args):
+    self.reboot_and_log() 
+  
+  def __exit__(self, *args):
+    self.timer.cancel()
+    self.file.close()
+ 
+  def process_message(self, msg, **kwargs):
+    """
+    Wait for logs, heartbeats, and MsgStartup.
+    """
+    msg = dispatch(msg)
+    if self.state==0:
+      self.state = 1
+      self.log_state_trans()
+    if isinstance(msg, MsgStartup) and self.state < 4:
+      print "got startup"
+      self.state=2
+      self.log_state_trans()
+    if isinstance(msg, MsgHeartbeat) and self.state < 4 and self.state_dict[3] == 0:
+      print "got heartbeat"
+      self.state=3
+      self.log_state_trans()
+    if isinstance(msg, MsgLog):
+      print msg.text
+      if msg.text.startswith("Performing"):
+        self.state=4
+        self.log_state_trans()
+      if msg.text.startswith("Upgrade completed successfully. "):
+        self.state=5
+        self.log_state_trans()
+        self.reboot_and_log()
+      if msg.text.startswith("NAP Verification"):
+        self.state=7
+        self.log_state_trans()
+        self.reboot_and_log()
+      if msg.text.startswith("ERROR: Upgrade was unsuccessful"):
+        self.state=8
+        self.log_state_trans()
+        self.reboot_and_log()
+  
+  def reboot_and_log(self):
+    if self.state_dict:
+       self.log_state_dict()
+    self.clear_state()
+    self.reset_time = time.time()
+    self.timer.reset()
+    self.handler(MsgReset(flags=0))
+    time.sleep(0.25)
+    
+  def action(self):
+    """
+    Stub for communicating with device. Should be overloaded in subclass.
+    """
+    print "Hit restart timer without getting to completion after {0} seconds".format(time.time() - self.reset_time)
+    self.state=6
+    self.log_state_trans()
+    self.reboot_and_log()
 
 class DropSatsState(TestState):
   """
@@ -117,9 +236,6 @@ class DropSatsState(TestState):
     self.num_tracked_sats = 0
     self.prn_status_dict = {}
     self.channel_status_dict = {}
-
-    # timer stuff
-    self.timer = LoopTimer(interval, self.action)
 
   def __enter__(self):
     self.timer.start()
@@ -225,6 +341,9 @@ def get_args():
   parser.add_argument("-m", "--minsats",
                       default=[DEFAULT_MIN_SATS], nargs=1,
                       help="Minimum number of satellites to retain during drop events.")
+  parser.add_argument( "--timeout",
+                      default=None, 
+                      help="timeout.")
   return parser.parse_args()
 
 def main():
@@ -236,10 +355,13 @@ def main():
   args = get_args()
   port = args.port
   baud = args.baud
-  timeout = args.timeout[0]
-  log_filename = args.log_filename[0]
-  append_log_filename = args.append_log_filename[0]
-  tags = args.tags[0]
+  timeout = args.timeout
+  log_filename = args.logfilename
+  log_dirname = args.log_dirname
+  if not log_filename:
+    log_filename=sl.logfilename()
+  if log_dirname:
+    log_filename = os.path.join(log_dirname, log_filename)
   interval = int(args.interval[0])
   minsats = int(args.minsats[0])
 
@@ -249,45 +371,34 @@ def main():
     with Handler(Framer(driver.read, driver.write, args.verbose)) as link:
       # Logger with context
       with sl.get_logger(args.log, log_filename) as logger:
-        # Append logger iwth context
-        with sl.get_append_logger(append_log_filename, tags) as append_logger:
-          # print out SBP_MSG_PRINT_DEP messages
-          link.add_callback(sl.printer, SBP_MSG_PRINT_DEP)
-          link.add_callback(sl.log_printer, SBP_MSG_LOG)
-          # add logger callback
-          Forwarder(link, logger).start()
-          # ad append logger callback
-          Forwarder(link, append_logger).start()
-          try:
-            # Get device info
-            # Diagnostics reads out the device settings and resets the Piksi
-            piksi_diag = ptd.Diagnostics(link)
-            while not piksi_diag.heartbeat_received:
-              time.sleep(0.1)
-            # add Teststates and associated callbacks
-            with DropSatsState(link, piksi_diag.sbp_version, interval,
-                               minsats, debug=args.verbose) as drop:
-              link.add_callback(drop.process_message)
+      # print out SBP_MSG_PRINT_DEP messages
+        #link.add_callback(sl.log_printer, SBP_MSG_LOG)
+        # add logger callback
+        Forwarder(link, logger).start()
+        try:
+          # Get device info
+          # add Teststates and associated callbacks
+          with BootloadTestState(link, interval) as boot:
 
-              if timeout is not None:
-                expire = time.time() + float(args.timeout[0])
+            if timeout is not None:
+              expire = time.time() + float(args.timeout)
 
-              while True:
-                if timeout is None or time.time() < expire:
-                # Wait forever until the user presses Ctrl-C
-                  time.sleep(1)
-                else:
-                  print "Timer expired!"
-                  break
-                if not link.is_alive():
-                  sys.stderr.write("ERROR: Thread died!")
-                  sys.exit(1)
-          except KeyboardInterrupt:
-            # Callbacks call thread.interrupt_main(), which throw a KeyboardInterrupt
-            # exception. To get the proper error condition, return exit code
-            # of 1. Note that the finally block does get caught since exit
-            # itself throws a SystemExit exception.
+            while True:
+              if timeout is None or time.time() < expire:
+              # Wait forever until the user presses Ctrl-C
+                time.sleep(1)
+              else:
+                print "Timer expired!"
+                break
+          if not link.is_alive():
+            sys.stderr.write("ERROR: Thread died!")
             sys.exit(1)
+        except KeyboardInterrupt:
+          # Callbacks call thread.interrupt_main(), which throw a KeyboardInterrupt
+          # exception. To get the proper error condition, return exit code
+          # of 1. Note that the finally block does get caught since exit
+          # itself throws a SystemExit exception.
+          sys.exit(1)
 
 if __name__ == "__main__":
   main()

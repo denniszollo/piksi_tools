@@ -44,7 +44,7 @@ class Diagnostics(object):
                            SBP_MSG_SETTINGS_READ_BY_INDEX_RESP)
     self.link.add_callback(self._settings_done_callback,
                            SBP_MSG_SETTINGS_READ_BY_INDEX_DONE)
-    self.link.add_callback(self._heartbeat_callback, SBP_MSG_HEARTBEAT)
+    self.link.add_callback(self._heartbeat_callback, [SBP_MSG_HEARTBEAT, SBP_MSG_LOG])
     self.link.add_callback(self._deprecated_handshake_callback,
                            SBP_MSG_BOOTLOADER_HANDSHAKE_DEP_A)
     self.link.add_callback(self._handshake_callback,
@@ -52,15 +52,19 @@ class Diagnostics(object):
     self.link.add_callback(self._print_callback,
                            [SBP_MSG_LOG, SBP_MSG_PRINT_DEP])
     timeout = time.time() + timeout if timeout is not None else None
+    self.link(MsgReset(flags=0))
     # Wait for the heartbeat
     while not self.heartbeat_received:
       time.sleep(0.1)
       if timeout is not None and time.time() > timeout:
         print "timeout waiting for heartbeat"
         return
+    time.sleep(20)
     # Wait for the settings
-    print "received heartbeat"
+    print "received heartbeat or MsgLog"
     expire = time.time() + 15.0
+    timeout = time.time() + timeout
+    self.index = 0
     self.link(MsgSettingsReadByIndexReq(index=0))
     while not self.settings_received:
       time.sleep(0.1)
@@ -73,17 +77,6 @@ class Diagnostics(object):
 
     # Wait for the handshake
     print "received settings"
-    expire = time.time() + 10.0
-    self.link(MsgReset(flags=0))
-    while not self.handshake_received:
-      time.sleep(0.1)
-      if time.time() > expire:
-        expire = time.time() + 10.0
-        self.link(MsgReset(flags=0))
-      if timeout is not None and time.time() > timeout:
-        print "timeout waiting for handshake"
-        return
-    print "received bootloader handshake"
 
   def _print_callback(self, msg, **metadata):
     print msg.text
@@ -117,7 +110,8 @@ class Diagnostics(object):
         self.diagnostics['settings'][section] = {}
       self.diagnostics['settings'][section][setting] = value
       index = struct.unpack('<H', sbp_msg.payload[:2])[0]
-      self.link(MsgSettingsReadByIndexReq(index=index+1))
+      if self.index == index:
+        self.link(MsgSettingsReadByIndexReq(index=index+1))
 
   def _settings_done_callback(self, sbp_msg, **metadata):
     self.settings_received = True
@@ -181,7 +175,7 @@ def main():
   # Driver with context
   with serial_link.get_driver(args.ftdi, port, baud) as driver:
     with Handler(Framer(driver.read, driver.write)) as link:
-      diagnostics = Diagnostics(link).diagnostics
+      diagnostics = Diagnostics(link, timeout=20).diagnostics
       with open(diagnostics_filename, 'w') as diagnostics_file:
         yaml.dump(diagnostics, diagnostics_file, default_flow_style=False)
         print "wrote diagnostics file"
