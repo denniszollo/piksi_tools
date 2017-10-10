@@ -640,6 +640,17 @@ class SettingsView(HasTraits):
 
     def settings_read_by_index_done_callback(self, sbp_msg, **metadata):
         self.settings_display_setup()
+        with open("settings.csv", 'w') as f:
+          for grp in self.settings.keys():
+            for each in self.settings[grp]: 
+              f.write("{0},{1}\n".format(grp,self.settings[grp][each].name))
+        with open("settings_yaml_not_used.csv", 'w') as f:
+          for each in self.settings_yaml.list_of_dicts:
+            try:
+              if self.settings[each['group']][each['name']]:
+                pass
+            except KeyError:
+                f.write("{0},{1}\n".format(each['group'],each['name']))
 
     def settings_read_resp_callback(self, sbp_msg, **metadata):
         confirmed_set = True
