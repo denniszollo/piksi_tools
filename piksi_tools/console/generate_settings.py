@@ -76,7 +76,7 @@ with open("settings_out.tex", 'w') as f:
         latex_template.render(
             groups=sorted(groups),
             setting=sorted(settings.list_of_dicts),
-            version='v0.15'))
+            version='v1.2.12'))
 
 subprocess.Popen(
     ["pdflatex", "--shell-escape", "settings_out.tex"], env=myenviron).wait()
