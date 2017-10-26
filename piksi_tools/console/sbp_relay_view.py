@@ -30,6 +30,14 @@ from piksi_tools.console.gui_utils import MultilineTextEditor
 from piksi_tools.serial_link import (CHANNEL_UUID, DEFAULT_BASE, get_uuid,
                                      swriter)
 
+basedir = determine_path()
+cert_path = "cacert.pem"
+if os.path.isfile(cert_path):
+    pass
+else:
+    cert_path = os.path.join(basedir, cert_path)
+os.environ['REQUESTS_CA_BUNDLE'] = cert_path
+
 DEFAULT_UDP_ADDRESS = "127.0.0.1"
 DEFAULT_UDP_PORT = 13320
 OBS_MSGS = [
