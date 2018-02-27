@@ -300,8 +300,8 @@ def collect_positions(iterator, msgtype, debouncetime):
 
     Parameters
     ----------
-    infile : string
-      Log file to get data from.
+    iterator : Iterator
+      SBP Message iterator yielding tuples in form (msg, metadata)
     msgtype : string
       type of parameters to analyze and output
     debouncetime : integer
@@ -377,12 +377,12 @@ def get_args():
         '--filename',
         default=[None],
         nargs=1,
-        help="The SBP log file to extract data from.")
+        help="The SBP log file to extract data from. Default format is sbp json")
     parser.add_argument(
         '-b',
         '--binary',
         action="store_true",
-        help="The SBP log file to extract data from.")
+        help="Flag to indicate that the SBP file is a binary sbp file. Default format is sbp json")
     parser.add_argument(
         '-o',
         '--outfile',
@@ -415,8 +415,7 @@ if __name__ == '__main__':
                 driver = FileDriver(infile)
                 iterator = Framer(driver.read, driver.write, True)
             else:
-                iterator = JSONLogIterator(infile)
-            print(iterator)
+                iterator = JSONLogIterator(infile).next()
             a, b, c, d, e, f, g, h = collect_positions(iterator, args.type[0], args.debouncetime[0])
             display_data(a, b, c, d, e, f, g, h, args.type[0], args.outfile[0])
         else:
