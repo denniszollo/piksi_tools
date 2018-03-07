@@ -59,7 +59,7 @@ def main():
       try:
         for pattern, replacement in LATEX_SUBS_ALLOW_EXPONENTS:
             newval = pattern.sub(replacement, newval)
-        if newval[0:1].isdigit():
+        if newval[0:1].isdigit() and len(newval) < 20 :
           return '$' + newval + "$"
         else:
           return newval
