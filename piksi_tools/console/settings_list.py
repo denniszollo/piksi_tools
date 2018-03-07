@@ -22,7 +22,6 @@ yaml = YAML(typ='safe')
 
 class SettingsList():
     list_of_dicts = list()
-
     def __str__(self):
         pp = pprint.PrettyPrinter(indent=2)
         pp.pprint(self.list_of_dicts)
@@ -32,7 +31,16 @@ class SettingsList():
             if element['name'] == name and element['group'] == group:
                 return element
 
+    
+    def print_unseen(self):
+        print(self.seen_dict)
+        for element in self.list_of_dicts:
+            if self.seen_dict.get(str(element['group']) + str(element['name']), False) == False:
+                print(element['group'] + ":" + element['name'])
+    
+    
     def get_field(self, group, name, field):
+        self.seen_dict[str(group) + str(name)] = True
         returnvar = ""
         # confirm our class actually has list_of_dicts
         if self.list_of_dicts:
@@ -65,6 +73,7 @@ class SettingsList():
             stram = resource_stream('console/settings.yaml')
             temp_dict = yaml.load(stram)
             self.list_of_dicts = temp_dict
+            self.seen_dict = {}
             self.warned_dict = {}
             # inform user of success or failure
             print("Loaded settings yaml file from path " + resource_filename('console/settings.yaml'))

@@ -530,6 +530,7 @@ class SettingsView(HasTraits):
                     GUI.invoke_later(cb)
                 else:
                     cb()
+        self.settings_yaml.print_unseen()
 
     def settings_read_by_index_done_callback(self, sbp_msg, **metadata):
         self.settings_display_setup()
