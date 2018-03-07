@@ -41,13 +41,15 @@
 \label{sec:settings}
 \begin{flushleft}
 Piksi{\myfont\raisebox{0.4ex}\tiny\textregistered}  Multi has a number of settings that can be controlled by the end user via the provided Swift Console or through the SBP binary message protocol.  This document serves to enumerate these settings and provide a detailed description of the setting plus any relevant notes. If a setting is listed as "Expert" in this document, the "Show Advanced Settings" checkbox must be checked or the --expert command line argument must be passed to the Swift Console in order to see or modify the value.  Settings listed as "readonly" cannot be modified by the user and are available for information only.
+\par
+Settings can be discovered, read, and written via the Swift Binary Protocol on interfaces configured to accept SBP messages.  Please refer to the setting section of the \href{http://swiftnav.com/latest/sbp-specification}{latest SBP message specification} or the open source \href{https://github.com/swift-nav/libsbp.git}{Libsbp software library} for more information.  The "Grouping" and "Name" fields in this document are used as a token for each settine when using the SBP settings API.
 \end{flushleft}
 ((* block settings_toc *))
 {
 \newpage
 \section{Settings Table}
 \centering
-  \begin{longtable}{p{0.2\textwidth}p{0.2\textwidth}p{0.6\textwidth}}
+  \begin{longtable}{p{0.15\textwidth}p{0.25\textwidth}p{0.6\textwidth}}
     \toprule
     Grouping & Name & Description \\
     \midrule
@@ -78,7 +80,7 @@ Piksi{\myfont\raisebox{0.4ex}\tiny\textregistered}  Multi has a number of settin
 \subsubsection{(((m.name|escape_tex_exp|no_us)))}
 {
 \textbf{Description:}
-(((m.Description|escape_tex_exp)))
+(((m.Description|escape_tex_exp|no_us)))
 \begin{table}[H]
   \centering
   \begin{tabular}{p{4cm} p{7cm}}
@@ -100,7 +102,7 @@ Piksi{\myfont\raisebox{0.4ex}\tiny\textregistered}  Multi has a number of settin
 \begin{flushleft}
 ((* if m.Notes is defined and m.Notes != 'None'*))
 \textbf{Notes:}
-(((m.Notes|escape_tex_exp)))
+(((m.Notes|escape_tex_exp |no_us)))
 ((* endif *))
 \end{flushleft}
 ((* endblock *))
