@@ -6,9 +6,10 @@ import re
 from piksi_tools.console.settings_list import SettingsList
 from piksi_tools.console import *
 import os
+import shutil
 
 def main():
-  swift_nav_style_path = "latex"
+  swift_nav_style_path = "c:\\cygwin64\\home\\dzollo\\piksi_tools\\latex"
   settings_path = "./piksi_tools/console"
   environment_variables_to_append=["TEXINPUTS","PATH"]
   myenviron = os.environ
@@ -26,9 +27,8 @@ def main():
   #Note, these reg exps will not replace the '^' character to allow exponents in the units text field
   LATEX_SUBS_ALLOW_EXPONENTS = (
       (re.compile(r'\\'), r'\\textbackslash'),
-      (re.compile(r'([{}_#%&$])'), r'\\\1'),
+      (re.compile(r'([{}#%&$])'), r'\\\1'),
       (re.compile(r'~'), r'\~{}'),
-      (re.compile(r'_'), r'_'),
       (re.compile(r'"'), r"''"),
       (re.compile(r'\.\.\.+'), r'\\ldots'),
       (re.compile(r'\n'), r'\\newline '),
@@ -44,7 +44,7 @@ def main():
   def no_us(value):
       newval = value
       try:
-        return NO_UNDERSCORE.sub(' ', newval)
+        return NO_UNDERSCORE.sub(r'\\textunderscore ', newval)
       except TypeError:
         if isinstance(value, bool): 
            if value:
@@ -93,8 +93,8 @@ def main():
 
   import subprocess
 
-  subprocess.Popen(["pdflatex" , "--shell-escape", "settings_out.tex"], env=myenviron).wait()
-  subprocess.Popen(["pdflatex" , "--shell-escape", "settings_out.tex"], env=myenviron).wait()
+  subprocess.Popen(["c:\\Program Files\\MiKTeX 2.9\\miktex\\bin\\x64\pdflatex" , "--shell-escape", "settings_out.tex"], env=myenviron).wait()
+  subprocess.Popen(["c:\\Program Files\\MiKTeX 2.9\\miktex\\bin\\x64\pdflatex" , "--shell-escape", "settings_out.tex"], env=myenviron).wait()
   subprocess.call(["mv" , "settings_out.pdf", "docs/settings.pdf"])
 
 if __name__ == '__main__':
