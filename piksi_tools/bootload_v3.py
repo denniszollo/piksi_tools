@@ -114,7 +114,7 @@ def main():
                 "upgrade.image_set.bin", data, progress_cb=progress_cb)
             print('Committing file to flash...')
             code = shell_command(link, "upgrade_tool upgrade.image_set.bin",
-                                 300)
+                                 600)
             if code != 0:
                 print('Failed to perform upgrade (code = %d)' % code)
                 return
