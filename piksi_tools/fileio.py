@@ -25,8 +25,8 @@ from sbp.file_io import (SBP_MSG_FILEIO_READ_DIR_RESP,
 from piksi_tools import serial_link
 
 MAX_PAYLOAD_SIZE = 255
-SBP_FILEIO_WINDOW_SIZE = 10
-SBP_FILEIO_TIMEOUT = 1.0
+SBP_FILEIO_WINDOW_SIZE =5 
+SBP_FILEIO_TIMEOUT = 2.0
 
 
 class Semaphore(object):
@@ -81,7 +81,7 @@ class SelectiveRepeater(object):
                 except: # noqa
                     continue
                 if tnow - sent_time > SBP_FILEIO_TIMEOUT:
-                    if tries >= 3:
+                    if tries >= 5:
                         raise Exception('Timed out')
                     tries += 1
                     self.window[seq] = (msg, tnow, tries)
