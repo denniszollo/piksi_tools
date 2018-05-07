@@ -89,7 +89,7 @@ def main():
 
   latex_template = jenv.get_template('settings_template.tex')
   with open("settings_out.tex", 'w') as f:
-    f.write(latex_template.render(groups=sorted(groups), setting=sorted(settings.list_of_dicts), version='v1.4.X'))
+    f.write(latex_template.render(groups=sorted(groups), setting=sorted(settings.list_of_dicts), version='v1.5.12'))
 
   import subprocess
 
