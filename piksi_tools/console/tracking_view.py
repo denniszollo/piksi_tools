@@ -251,44 +251,35 @@ class TrackingView(CodeFiltered):
         self.CN0_lock.acquire()
         plot_labels = []
         plots = []
-        self.plot_data.set_data('t', self.time)
-        # Remove any stale plots that got removed from the dictionary
-        for each in self.plot_data.list_data():
-            if each not in [str(a)
-                            for a in self.CN0_dict.keys()] and each != 't':
-                try:
-                    self.plot_data.del_data(each)
-                    self.plot.delplot(each)
-                except KeyError:
-                    pass
-        new_plot_data = {}
+        # Update the underlying plot data from the CNO_dict for selected items
+        new_plot_data = {'t': self.time}
         for k, cno_array in self.CN0_dict.items():
-            if int(k[0]) not in SUPPORTED_CODES:
-                continue
             key = str(k)
             # set plot data
             if (getattr(self, 'show_{}'.format(int(k[0])), True)):
                 new_plot_data[key] = cno_array
         self.plot_data.update_data(new_plot_data)
-        # plot item if necessary
+        # Remove any stale plots that got removed from the dictionary
+        for each in self.plot.plots.keys():
+            if each not in [str(a) for a in self.CN0_dict.keys()] and each != 't':
+                try:
+                    self.plot.delplot(each)
+                except KeyError:
+                    pass
+        # add/remove plot as neccesary and build legend
         for k, cno_array in self.CN0_dict.items():
-            if int(k[0]) not in SUPPORTED_CODES:
-                continue
             key = str(k)
-            if (getattr(self, 'show_{}'.format(int(k[0])), True)):
+            if (getattr(self, 'show_{}'.format(int(k[0])), True) 
+              and not (cno_array==0).all()):
                 if key not in self.plot.plots.keys():
                     pl = self.plot.plot(
                         ('t', key), type='line', color=get_color(k), name=key)
                 else:
                     pl = self.plot.plots[key]
-                # if channel is still active:
-                if cno_array[-1] != 0:
-                    plots.append(pl)
-                    plot_labels.append(get_label(k, self.glo_slot_dict))
-            # Remove plot data and plots not selected
+                plots.append(pl)
+                plot_labels.append(get_label(k, self.glo_slot_dict))
+            # if not selected or all 0, remove
             else:
-                if key in self.plot_data.list_data():
-                    self.plot_data.del_data(key)
                 if key in self.plot.plots.keys():
                     self.plot.delplot(key)
         plots = dict(zip(plot_labels, plots))
