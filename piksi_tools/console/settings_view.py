@@ -717,6 +717,9 @@ class SettingsView(HasTraits):
                     GUI.invoke_later(cb)
                 else:
                     cb()
+        for each in self.settings_yaml.list_of_dicts:
+            if not each.get('received', False):
+                print("Setting {} not received from device".format(each))
 
     def settings_read_by_index_done_callback(self, sbp_msg, **metadata):
         if self.retry_pending_read_index_thread:
