@@ -1869,7 +1869,7 @@
   name: imu_rate
   expert: false
   type: enum
-  default value: '50'
+  default value: '100'
   readonly: false
   enumerated possible values: 25,50,100,200
   units: Hz
