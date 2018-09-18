@@ -451,21 +451,31 @@ class UpdateView(HasTraits):
         self.stm_fw.clear(status)
         self._write(status)
 
+    def _download_console(self):
+        """ Download latest firmware from swiftnav.com. """
+        self._write('')
+
+        # Check that we received the index file from the website.
+        if self.update_dl is None or self.update_dl.index is None:
+            self._write("Error: Can't download firmware files")
+            return
+
+        status = 'Downloading Latest Console...'
+        self._write(status)
+
         # Get firmware files from Swift Nav's website, save to disk, and load.
-        if 'fw' in self.update_dl.index[self.piksi_hw_rev]:
+        if 'console' in self.update_dl.index[self.piksi_hw_rev]:
             try:
-                self._write('Downloading Latest Multi firmware')
-                filepath = self.update_dl.download_multi_firmware(
+                filepath = self.update_dl.download_console(
                     self.piksi_hw_rev)
                 self._write('Saved file to %s' % filepath)
-                self.stm_fw.load_bin(filepath)
             except AttributeError:
                 self._write(
                     "Error downloading firmware: index file not downloaded yet"
                 )
             except RuntimeError as e:
                 self._write(
-                    "RunTimeError: unable to download firmware to path {0}: {1}".format(self.download_directory, e))
+                    "RunTimeError: unable to download console to path {0}: {1}".format(self.download_directory, e))
             except IOError as e:
                 if e.errno == errno.EACCES or e.errno == errno.EPERM:
                     self._write("IOError: unable to write to path %s. "
@@ -475,13 +485,12 @@ class UpdateView(HasTraits):
                     raise (e)
             except KeyError:
                 self._write(
-                    "Error downloading firmware: URL not present in index")
+                        "Error downloading Console: URL not present in index")
             except URLError:
-                self.nap_fw.clear("Error downloading firmware")
+                self.nap_fw.clear("Error downloading console")
                 self._write(
-                    "Error: Failed to download latest NAP firmware from Swift Navigation's website"
+                    "Error: Failed to download latest console from Swift Navigation's website"
                 )
-            self.downloading = False
             return
 
     def _download_firmware_fired(self):
@@ -563,18 +572,19 @@ class UpdateView(HasTraits):
                     console_outdated_prompt = \
                         prompt.CallbackPrompt(
                             title="Swift Console Outdated",
-                            actions=[prompt.close_button],
+                            actions=[prompt.close_button, prompt.ok_button],
+                            callback = self._download_console
                         )
                     console_outdated_prompt.text = \
                         "Your console is out of date and may be incompatible\n" + \
                         "with current firmware. We highly recommend upgrading to\n" + \
                         "ensure proper behavior.\n\n" + \
-                        "Please visit http://support.swiftnav.com to\n" + \
-                        "download the latest version.\n\n" + \
+                        "Download and installation instructions are available at http://support.swiftnav.com to\n\n" + \
                         "Local Console Version :\n\t" + \
                         "v" + CONSOLE_VERSION + \
                         "\nLatest Console Version :\n\t" + \
-                        self.update_dl.index[self.piksi_hw_rev]['console']['version'] + "\n"
+                        self.update_dl.index[self.piksi_hw_rev]['console']['version'] + "\n" \
+                        "\n\nWould you like to download the latest console for your platform now to the\n" + self.download_directory + " path?"
                 else:
                     console_outdated_prompt = \
                         prompt.CallbackPrompt(

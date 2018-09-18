@@ -15,8 +15,7 @@ from urlparse import urlparse
 
 from piksi_tools.utils import sopen
 from piksi_tools.console.utils import swift_path
-INDEX_URL = 'https://s3-us-west-1.amazonaws.com/downloads.swiftnav.com/index_https.json'
-
+INDEX_URL = 'http://localhost:8000/index_https.json'
 
 class UpdateDownloader:
     def __init__(self, root_dir=swift_path):
@@ -61,6 +60,12 @@ class UpdateDownloader:
                 "Error downloading firmware: URL not present in index")
         return filepath
 
+    def download_console(self, hwrev):
+        import sys
+        platform = sys.platform
+        url = self.index[hwrev]['console'][platform+'_url']
+        return self._download_file_from_url(url)
+
     def _download_file_from_url(self, url):
         if not os.path.exists(self.root_dir):
             raise RuntimeError("Path to download file {0} to does not exist.".format(self.root_dir))
@@ -73,3 +78,10 @@ class UpdateDownloader:
         with sopen(filename, 'wb') as f:
             f.write(blob)
         return os.path.abspath(filename)
+
+
+def test():
+    a = UpdateDownloader()
+    a.download_multi_firmware('piksi_multi')
+    a.download_console('piksi_multi')
+
