@@ -347,10 +347,11 @@ class BaselineView(HasTraits):
     def _solution_draw(self):
         self.last_plot_update_time = time.time()
         soln = self.last_soln
-        # update our "current solution" icon
-        for mode_string in list(self.pending_draw_modes):
-            self._synchronize_plot_data_by_mode(mode_string)
-            self.pending_draw_modes.remove(mode_string)
+        if self.running:
+            # update our "current solution" icon
+            for mode_string in list(self.pending_draw_modes):
+                self._synchronize_plot_data_by_mode(mode_string)
+                self.pending_draw_modes.remove(mode_string)
 
         # make the zoomall win over the position centered button
         if not self.zoomall and self.position_centered:
