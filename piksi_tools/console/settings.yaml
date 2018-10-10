@@ -528,17 +528,6 @@
   Notes: This is a read only setting that refers to the product family of the hardware.
 
 - group: system_info
-  name: hw_version
-  expert: True
-  type: string
-  units: N/A
-  default value: N/A
-  readonly: True
-  enumerated possible values:
-  Description: Hardware version number.
-  Notes: This is a read only setting that corresponds to the version number printed on the oem module hardware version sticker.
-
-- group: system_info
   name: hw_variant
   expert: True
   type: string
@@ -1118,15 +1107,6 @@
   Notes: This parameter down weights GLONASS observations relative to GPS observations by this factor.
 
 - group: track
-  name: send_trk_detailed
-  expert: true
-  type: boolean
-  default value: false
-  readonly: false
-  Description: send detailed tracking state message.
-  Notes:
-
-- group: track
   name: iq_output_mask
   expert: true
   type: integer
@@ -1136,18 +1116,6 @@
   enumerated possible values:
   Description: Output raw I/Q correlations.
   Notes: Bitmask of channel IDs (not PRNs)
-
-- group: track
-  name: max_pll_integration_time_ms
-  expert: true
-  type: integer
-  units: N/A
-  default value: '20'
-  readonly: false
-  enumerated possible values:
-  Description: Controls maximum possible integration time for a measurement.
-  Notes: This can be used to configure the sensitivity and dynamic tracking modes permitted to be used by receiver.
-     Lower values provide lower sensitivity and noisier phase measurements but better performance in dynamic conditions.
 
 - group: nmea
   name: gpgsv_msg_rate
@@ -1460,15 +1428,6 @@
   readonly: false
   Description: The default gateway for the IP config.
   Notes: The configured gateway in XXX.XXX.XXX.XXX format.
-
-- group: cell_modem
-  name: modem_type
-  expert: true
-  type: enum
-  enumerated possible values: GSM,CDMA
-  default value: 'GSM'
-  readonly: false
-  Description: The type of cell modem in use.
 
 - group: cell_modem
   name: debug
@@ -1828,14 +1787,6 @@
   units: N/A
 
 - group: cell_modem
-  name: device
-  expert: true
-  type: string
-  default value: 'ttyACM0'
-  readonly: false
-  units: N/A
-
-- group: cell_modem
   name: APN
   expert: true
   type: string
@@ -1965,226 +1916,3 @@
   Notes: If a connectivity check fails, this settings controls the frequency at which a new
          connectivity check is performed.
 
-- group: vehicle_dynamics_filter
-  name: mode
-  expert: true
-  type: enum
-  units: N/A
-  default value: 'None'
-  readonly: false
-  enumerated possible values: None, Tractor
-  Description: (ALPHA) Selects the type of vehicle dynamics filter.
-  Notes: The vehicle dynamics filter allows additional filtering to be imposed on top
-         of the raw GNSS solution. Different vehicle types allow certain assumptions to be made
-         about the dynamics of the trajectory, and these can be incorporated via the additional
-         filtering step.
-
-- group: vehicle_dynamics_filter
-  name: lowpass_time_constant
-  expert: true
-  type: double
-  units: seconds
-  default value: '3.0'
-  readonly: false
-  Description: (ALPHA) Time constant for low-pass filtering of position trajectory.
-  Notes: Has no effect unless the vehicle dynamics filter is active.
-
-- group: vehicle_dynamics_filter
-  name: max_acceleration 
-  expert: true
-  type: double
-  units: meters per second squared 
-  default value: '3.0'
-  readonly: false
-  Description: (ALPHA) Maximum possible linear acceleration of vehicle.
-  Notes: Has no effect unless the vehicle dynamics filter is active.
-
-- group: ins
-  name: output_mode
-  expert: false
-  type: enum
-  units: N/A
-  default value: 'disabled'
-  readonly: false
-  enumerated possible values: Disabled, Loosely Coupled, LC + GNSS
-  Description: Determines output mode of the inertial navigation outputs. 
-  Notes: Loosely Coupled will output a loosely coupled GNSS and inertial solution.
-         LC + GNSS configures a testing mode that simultaneously outputs both GNSS only and the loosely coupled inertial solution.
-         In LC + GNSS mode, there are two sets of solution messages with identical times. The "ins flags" indicate which messages are GNSS only solutions and which include are the loosely coupled inertial solution.
-         Disabled configures device to output GNSS only solutions.
-
-- group: ins
-  name: odometry_noise_1
-  expert: true
-  type: double
-  units: m/s
-  default value: '0.28'
-  readonly: false
-  Description: Noise parameter for odometry source 1
-
-- group: ins
-  name: odometry_noise_2
-  expert: true
-  type: double
-  units: m/s
-  default value: '0.28'
-  readonly: false
-  Description: Noise parameter for odometry source 2
-
-- group: ins
-  name: odometry_noise_3
-  expert: true
-  type: double
-  units: m/s
-  default value: '0.28'
-  readonly: false
-  Description: Noise parameter for odometry source 3
-
-- group: ins
-  name: odometry_noise_4
-  expert: true
-  type: double
-  units: m/s
-  default value: '0.28'
-  readonly: false
-  Description: Noise parameter for odometry source 4
-
-- group: ins
-  name: vehicle_frame_roll
-  expert: false
-  type: double
-  units: degrees
-  default value: '0'
-  readonly: false
-  Description: Roll angle representing rotation from vehicle frame to device frame. 
-  Notes:       The euler angles are applied extrinsically in order roll, pitch, then yaw
-               about the defined vehicle axes to describe how the vehicle should rotate to align
-               with the device frame as mounted in the vehicle. These rotations directly affect
-               body velocities, attitude outputs, and the "Constrain Vehicle Sideslip" feature.
-
-- group: ins
-  name: vehicle_frame_pitch
-  expert: false
-  type: double
-  units: degrees
-  default value: '0'
-  readonly: false
-  Description: Pitch angle representing rotation from vehicle frame to device frame. 
-  Notes:       The euler angles are applied extrinsically in order roll, pitch, then yaw
-               about the defined vehicle axes to describe how the vehicle should rotate to align
-               with the device frame as mounted in the vehicle. These rotations directly affect
-               body velocities, attitude outputs, and the "Constrain Vehicle Sideslip" feature.
-
-- group: ins
-  name: vehicle_frame_yaw
-  expert: false
-  type: double
-  units: degrees
-  default value: '0'
-  readonly: false
-  Description: Yaw angle representing rotation from vehicle frame to device frame. 
-  Notes:       The euler angles are applied extrinsically in order roll, pitch, then yaw
-               about the defined vehicle axes to describe how the vehicle should rotate to align
-               with the device frame as mounted in the vehicle. These rotations directly affect
-               body velocities, attitude outputs, and the "Constrain Vehicle Sideslip" feature.
-
-- group: ins
-  name: antenna_offset_x
-  expert: false
-  type: double
-  units: meters
-  default value: '0'
-  readonly: false
-  Description: X component of vector from device frame to antenna phase center  
-  Notes:       The vector is measured in the device frame according to the markings on the device.
-
-- group: ins
-  name: antenna_offset_y
-  expert: false
-  type: double
-  units: meters
-  default value: '0'
-  readonly: false
-  Description: Y component of vector from device frame to antenna phase center 
-  Notes:       The vector is measured in the device frame according to the markings on the device.
-
-- group: ins
-  name: antenna_offset_z
-  expert: false
-  type: double
-  units: meters
-  default value: '-0.12674'
-  readonly: false
-  Description: Z component of vector from device frame to antenna phase center  
-  Notes:       The vector is measured in the device frame according to the markings on the device. The default
-               value represents the offset from the Duro Device Frame to the antenna phase center when the antenna
-               mounting bracket shipped with Duro is in use.
-
-- group: ins
-  name: vehicle_frame_offset_x
-  expert: false
-  type: double
-  units: meters
-  default value: '0'
-  readonly: false
-  Description: X component of vector from device frame to vehicle frame origin in which inertial outputs are provided  
-  Notes: The vector is measured in the device frame according to the markings on the device. In order to output inertial solutions at the antenna phase center, this should be the same value (both sign and magnitude) as antenna_offset_x setting. 
-
-- group: ins
-  name: vehicle_frame_offset_y
-  expert: false
-  type: double
-  units: meters
-  default value: '0'
-  readonly: false
-  Description: Y component of vector from device frame to vehicle frame origin in which inertial outputs are provided  
-  Notes: The vector is measured in the device frame according to the markings on the device. In order to output inertial solutions at the antenna phase center, this should be the same value (both sign and magnitude) as antenna_offset_x setting. 
-
-- group: ins
-  name: vehicle_frame_offset_z
-  expert: false
-  type: double
-  units: meters
-  default value: '-0.12674'
-  readonly: false
-  Description: Z component of vector from device frame to vehicle frame origin in which inertial outputs are provided  
-  Notes: The vector is measured in the device frame according to the markings on the device. In order to output inertial solutions at the antenna phase center, this should be the same value (both sign and magnitude) as antenna_offset_x setting. 
-         The default value represents vehicle outpus at the antenna phase center when the Duro antenna mounting bracket is in use.
-
-- group: ins
-  name: constrain_vehicle_sideslip
-  expert: true
-  type: boolean
-  units: N/A
-  default value: false
-  readonly: false
-  Description: Enables or disables the non-holonomic constraint feature that allows inertial system to make assumptions about vehicle dynamics 
-  Notes:       This settings should only be enabled provided the vehicle frame Euler angles are measured precisely and are correct. It assumes a vehicle can have no velocity in the direction aligned with the vehicle "y" axis (i.e no sideslip). This is a reasonable assumption for passenger vehicles and many tractors.
-
-- group: ins
-  name: dr_duration_max
-  expert: true
-  type: double
-  units: seconds
-  default value: '10'
-  readonly: false
-  Description: Indicates the maximum duration in seconds for which the inertial system will dead reckon
-  Notes:       The default value of 10 seconds was chosen as the expected duration for which the Duro Inertial solution can maintain sub-meter accuracy.
-
-- group: ins
-  name: build_name
-  expert: true
-  type: string
-  units: N/A
-  default value: N/A
-  readonly: true
-  Description: inertial navigation system build name
-
-- group: ins
-  name: build_date
-  expert: true
-  type: string
-  units: N/A
-  default value: N/A
-  readonly: true
-  Description: inertial navigation system build date
