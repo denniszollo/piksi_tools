@@ -575,17 +575,6 @@
   Notes: This is a read only setting that refers to the product family of the hardware.
 
 - group: system_info
-  name: hw_version
-  expert: True
-  type: string
-  units: N/A
-  default value: N/A
-  readonly: True
-  enumerated possible values:
-  Description: Hardware version number.
-  Notes: This is a read only setting that corresponds to the version number printed on the oem module hardware version sticker.
-
-- group: system_info
   name: hw_variant
   expert: True
   type: string
@@ -1208,18 +1197,6 @@
   Description: Output raw I/Q correlations.
   Notes: Bitmask of channel IDs (not PRNs)
 
-- group: track
-  name: max_pll_integration_time_ms
-  expert: true
-  type: integer
-  units: N/A
-  default value: '20'
-  readonly: false
-  enumerated possible values:
-  Description: Controls maximum possible integration time for a measurement.
-  Notes: This can be used to configure the sensitivity and dynamic tracking modes permitted to be used by receiver.
-     Lower values provide lower sensitivity and noisier phase measurements but better performance in dynamic conditions.
-
 - group: nmea
   name: gpgsv_msg_rate
   expert: false
@@ -1531,15 +1508,6 @@
   readonly: false
   Description: The default gateway for the IP config.
   Notes: The configured gateway in XXX.XXX.XXX.XXX format.
-
-- group: cell_modem
-  name: modem_type
-  expert: true
-  type: enum
-  enumerated possible values: GSM,CDMA
-  default value: 'GSM'
-  readonly: false
-  Description: The type of cell modem in use.
 
 - group: cell_modem
   name: debug
@@ -1903,14 +1871,6 @@
   expert: true
   type: boolean
   default value: 'False'
-  readonly: false
-  units: N/A
-
-- group: cell_modem
-  name: device
-  expert: true
-  type: string
-  default value: 'ttyACM0'
   readonly: false
   units: N/A
 
