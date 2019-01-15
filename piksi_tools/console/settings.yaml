@@ -1910,7 +1910,7 @@
   Description: Standalone logging path.
   units: N/A
   Notes: Sets the paths in which to write logs. A warning will be logged every 30 seconds if this path is invalid or unavailable. The system will not create a folder that does not exist.
-         If this setting is changed while logging is enabled, it will go into effect on the next file that’s created.
+         If this setting is changed while logging is enabled, it will go into effect on the next file that is created.
 
 - group: standalone_logging
   name: enable
