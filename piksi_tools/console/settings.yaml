@@ -132,7 +132,7 @@
   enumerated possible values:
   Description: Receiver type description to be sent out in the RTCMv3 1033 message.
   Notes: Alphanumeric characters. Maxmimum 31 characters.
-  
+
 - group: rtcm_out
   name: ant_descriptor
   expert: true
@@ -144,7 +144,7 @@
   Description: Antenna description to be sent out in RTCMv3 messages 1008 and 1033.
   Notes: Alphanumeric characters. IGS limits the number of characters to 20 at
     this time, but this setting allows for 31 characters for future extension.
-    
+
 - group: rtcm_out
   name: antenna_height
   expert: true
@@ -418,6 +418,42 @@
     the device will only output the float ambiguity estimate.
 
 - group: solution
+  name: known_baseline_n
+  expert: false
+  type: double
+  units: meters
+  default value: '0'
+  readonly: false
+  enumerated possible values:
+  Description: Determines the baseline vector for the "init known baseline" feature.
+  Notes: This sets the number of meters that the rover is North from the
+    base station when the "init known baseline" feature is used.
+
+- group: solution
+  name: known_baseline_e
+  expert: false
+  type: double
+  units: meters
+  default value: '0'
+  readonly: false
+  enumerated possible values:
+  Description: Determines the baseline vector for the "init known baseline" feature.
+  Notes: This sets the number of meters that the rover is East from the
+    base station when the "init known baseline" feature is used.
+
+- group: solution
+  name: known_baseline_d
+  expert: false
+  type: double
+  units: meters
+  default value: '0'
+  readonly: false
+  enumerated possible values:
+  Description: Determines the baseline vector for the "init known baseline" feature.
+  Notes: This sets the number of meters that the rover is Down from the
+    base station when the "init known baseline" feature is used.
+
+- group: solution
   name: elevation_mask
   expert: false
   type: float
@@ -573,6 +609,17 @@
   enumerated possible values:
   Description: Hardware revision of the receiver.
   Notes: This is a read only setting that refers to the product family of the hardware.
+
+- group: system_info
+  name: hw_version
+  expert: True
+  type: string
+  units: N/A
+  default value: N/A
+  readonly: True
+  enumerated possible values:
+  Description: Hardware version number.
+  Notes: This is a read only setting that corresponds to the version number printed on the oem module hardware version sticker.
 
 - group: system_info
   name: hw_variant
@@ -1197,6 +1244,180 @@
   Description: Output raw I/Q correlations.
   Notes: Bitmask of channel IDs (not PRNs)
 
+- group: track
+  name: max_pll_integration_time_ms
+  expert: true
+  type: integer
+  units: N/A
+  default value: '20'
+  readonly: false
+  enumerated possible values:
+  Description: Controls maximum possible integration time for a measurement.
+  Notes: This can be used to configure the sensitivity and dynamic tracking modes permitted to be used by receiver.
+     Lower values provide lower sensitivity and noisier phase measurements but better performance in dynamic conditions.
+
+- group: cn0_est
+  name: alpha
+  expert: true
+  Description: cn0 estimation parameter.
+  readonly: false
+
+- group: cn0_est
+  name: nbw
+  expert: true
+  Description: cn0 estimation parameter.
+  readonly: false
+
+- group: cn0_est
+  name: scale
+  expert: true
+  Description: cn0 estimation parameter.
+  readonly: false
+
+- group: cn0_est
+  name: cn0 shift
+  expert: true
+  Description: cn0 estimation parameter.
+  readonly: false
+
+- group: cn0_est
+  name: cn0_shift
+  expert: true
+  Description: cn0 estimation parameter.
+  readonly: false
+
+- group: cn0_est
+  name: cutoff
+  expert: true
+  Description: cn0 cutoff.
+  readonly: false
+
+- group: cn0_est
+  name: pri2sec_threshold
+  type: float
+  expert: true
+  Description: Cn0 threshold to transition to 2nd stage tracking.
+  readonly: false
+
+- group: cn0_est
+  name: sec2pri_threshold
+  type: float
+  expert: true
+  Description: Cn0 threshold to transition to out of 2nd stage tracking.
+  readonly: false
+
+- group: l1ca_track
+  name: show_unconfirmed
+  expert: true
+  type: boolean
+  Description: Show unconfirmed tracking channels in tracking state.
+  readonly: false
+
+- group: l1ca_track
+  name: xcorr_cof
+  expert: true
+  type: float
+  Description: cross correlation coefficient.
+  readonly: false
+
+- group: l1ca_track
+  name: xcorr_delta
+  expert: true
+  type: float
+  Description: cross correlation delta.
+  readonly: false
+
+- group: l1ca_track
+  name: xcorr_time
+  expert: true
+  type: float
+  Description: cross correlation time.
+  readonly: false
+
+- group: glo_l1of_track
+  name: show_unconfirmed
+  expert: true
+  type: boolean
+  Description: Show unconfirmed tracking channels in tracking state.
+  readonly: false
+
+- group: glo_l1of_track
+  name: xcorr_cof
+  expert: true
+  type: float
+  Description: cross correlation coefficient.
+  readonly: false
+
+- group: glo_l1of_track
+  name: xcorr_delta
+  expert: true
+  type: float
+  Description: cross correlation delta.
+  readonly: false
+
+- group: glo_l1of_track
+  name: xcorr_time
+  expert: true
+  type: float
+  Description: cross correlation time.
+  readonly: false
+
+- group: l2c_track
+  name: xcorr_cof
+  expert: true
+  type: float
+  Description: cross correlation coefficient.
+  readonly: false
+
+- group: l2c_track
+  name: xcorr_delta
+  expert: true
+  type: float
+  Description: cross correlation delta.
+  readonly: false
+
+- group: l2c_track
+  name: xcorr_time
+  expert: true
+  type: float
+  Description: cross correlation time.
+  readonly: false
+
+- group: l2c_track
+  name: show_unconfirmed
+  expert: true
+  type: bool
+  Description: Show unconfirmed tracking channels in tracking state.
+  readonly: false
+
+- group: glo_l2of_track
+  name: show_unconfirmed
+  expert: true
+  type: boolean
+  Description: Show unconfirmed tracking channels in tracking state.
+  readonly: false
+
+- group: glo_l2of_track
+  name: xcorr_cof
+  expert: true
+  type: float
+  Description: cross correlation coefficient.
+  readonly: false
+
+- group: glo_l2of_track
+  name: xcorr_delta
+  expert: true
+  type: float
+  Description: cross correlation delta.
+  readonly: false
+
+- group: glo_l2of_track
+  name: xcorr_time
+  expert: true
+  type: float
+  Description: cross correlation time.
+  readonly: false
+
 - group: nmea
   name: gpgsv_msg_rate
   expert: false
@@ -1279,6 +1500,17 @@
   Description: Number of Solution Periods between GSA NMEA messages being sent.
   Notes: This setting represents the integer number of solution periods between each transmission of the NMEA message. For example, if the solution rate is 10 Hz, and this rate setting is 2, the NMEA message will be sent every two solution epochs at a rate of 5 Hz. If this setting is 0, the msg will be suppressed.
 
+- group: nmea
+  name: gpgsa_msg_rate
+  expert: false
+  type: integer
+  units: Solution Period
+  default value: '10'
+  readonly: false
+  enumerated possible values:
+  Description: Number of Solution Periods between GSA NMEA messages being sent.
+  Notes: This setting represents the integer number of solution periods between each transmission of the NMEA message.
+
 - group: ntrip
   name: enable
   expert: false
@@ -1299,8 +1531,8 @@
   readonly: false
   enumerated possible values:
   Description: NTRIP URL to use.
-  Notes: URL to use with NTRIP client. NTRIP must be enabled to use this setting.
-    URLs should be HTTP URLs with a port, and a mountpoint path such as example.com:2101/BAZ_RTCM3.
+  Notes: NTRIP must be enabled to use this setting. URLs should be HTTP URLs with a port, and a mountpoint path such as example.com:2101/BAZ_RTCM3.
+    NTRIP 'enable' must be 'False' in order to change this setting.
 
 - group: ntrip
   name: username
@@ -1363,7 +1595,7 @@
   expert: false
   type: integer
   units: us (microseconds)
-  default value: '200000'
+  default value: '2000'
   readonly: false
   enumerated possible values:
   Description: Number of microseconds the PPS will remain active (allowed range from 1 to 999999 us).
@@ -1384,12 +1616,12 @@
   name: offset
   expert: false
   type: integer
-  units: us (microseconds)
+  units: ns (nanoseconds)
   default value: '0'
   readonly: false
   enumerated possible values:
-  Description: Offset in microseconds between GPS time and the PPS.
-  Notes:
+  Description: Offset in nanoseconds between GPS time and the PPS.
+  Notes: This setting can be used to compensate for cable delays in timing systems.
 
 - group: pps
   name: frequency
@@ -1508,6 +1740,15 @@
   readonly: false
   Description: The default gateway for the IP config.
   Notes: The configured gateway in XXX.XXX.XXX.XXX format.
+
+- group: cell_modem
+  name: modem_type
+  expert: true
+  type: enum
+  enumerated possible values: GSM,CDMA
+  default value: 'GSM'
+  readonly: false
+  Description: The type of cell modem in use.
 
 - group: cell_modem
   name: debug
@@ -1875,6 +2116,14 @@
   units: N/A
 
 - group: cell_modem
+  name: device
+  expert: true
+  type: string
+  default value: 'ttyACM0'
+  readonly: false
+  units: N/A
+
+- group: cell_modem
   name: APN
   expert: true
   type: string
@@ -1890,6 +2139,7 @@
   default value: ''
   readonly: false
   Description: Override the device used for cell modem connectivity. If left empty, uses default device discovery to determine the correct device to use.
+  Notes: Cell modem 'enable' must be 'False' in order to change this setting.
 
 - group: standalone_logging
   name: file_duration
@@ -1910,8 +2160,8 @@
   readonly: false
   Description: Maximum storage device usage.
   units: percent
-  Notes: Sets a limit on how full the storage device can be before logging is stopped. If the drive is more than this percent full, no new log files will be created and a warning will be logged every 30 seconds. 
-         If this setting is changed while logging is enabled, it will go into effect on the next file that is created.
+  Notes: Sets a limit on how full the storage device can be before logging is stopped. If the drive is more than this percent full, no new log files will be created and a warning will be logged every 30 seconds.
+         If this setting is changed while logging is enabled, it will go into effect on the next file that’s created.
 
 - group: standalone_logging
   name: output_directory
@@ -1921,8 +2171,8 @@
   readonly: false
   Description: Standalone logging path.
   units: N/A
-  Notes: Sets the paths in which to write logs. A warning will be logged every 30 seconds if this path is invalid or unavailable. The system will not create a folder that does not exist. 
-         If this setting is changed while logging is enabled, it will go into effect on the next file that is created.
+  Notes: Sets the paths in which to write logs. A warning will be logged every 30 seconds if this path is invalid or unavailable. The system will not create a folder that does not exist.
+         If this setting is changed while logging is enabled, it will go into effect on the next file that’s created.
 
 - group: standalone_logging
   name: enable
@@ -2008,7 +2258,7 @@
   name: ota_enabled
   type: boolean
   expert: true
-  default value: false
+  default value: 'False'
   readonly: false
   units: N/A
   Description: Enables or disables the Over-The-Air upgrade daemon.
@@ -2020,11 +2270,11 @@
   name: ota_debug
   type: boolean
   expert: true
-  default value: false
+  default value: 'False'
   readonly: false
   units: N/A
   Description: Enables or disables the Over-The-Air upgrade daemon's verbose output.
-  Notes: The OTA daemon must be disabled in order to change this setting.
+  Notes: The "ota enabled" setting must be "False" in order to change this setting.
 
 - group: system
   name: ota_url
@@ -2325,3 +2575,29 @@
     3456/10 would provide message with ID 3456 at 1/10th the normal rate. For Ethernet,
     the default value is optimal for logging and communication with the console.
 
+- group: pps
+  name: propagation_mode
+  expert: false
+  type: enum
+  units: N/A
+  default value: Time Limited
+  enumerated possible values: None,Time Limited,Unlimited
+  Description: Configures the behavior of the PPS when no GNSS fix is available.
+
+- group: pps
+  name: propagation_timeout
+  expert: false
+  type: float 
+  units: seconds
+  default value: '5'
+  readonly: false
+  Description: Configures the timeout length of the PPS when using the "Time Limited" propagation mode.
+
+- group: csac
+  name: telemetry_enabled
+  expert: false
+  type: boolean
+  units: N/A
+  default value: 'false'
+  readonly: false
+  Description: Enables or disables the CSAC daemon which can communicate with Microsemi timing devices on UART0
