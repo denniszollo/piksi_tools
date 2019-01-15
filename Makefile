@@ -44,9 +44,9 @@ all: deps
 deps:
 	cd $(SWIFTNAV_ROOT)/tasks && bash setup.sh && cd $(SWIFTNAV_ROOT)
 
-docs: piksi_tools/console/settings.yaml latex/settings_template.tex piksi_tools/generate_settings_doc.py
+docs: piksi_tools/console/settings.yaml latex/settings_template.tex piksi_tools/generate_settings_doc.py 
 	rm -f docs/settings.pdf && cd $(SWIFTNAV_ROOT) && PYTHONPATH=. python piksi_tools/generate_settings_doc.py
-	mv docs/settings.pdf docs/PiksiMulti-settings-v2.1.14.pdf
+	mv docs/settings.pdf docs/PiksiMulti-settings-v2.2.14.pdf
 
 serial_deps:
 	pip install -r requirements.txt
