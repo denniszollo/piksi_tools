@@ -1,4 +1,4 @@
----
+\%u20ac\%u20ac---
 
 - group: surveyed_position
   name: broadcast
@@ -1901,7 +1901,7 @@
   Description: Maximum storage device usage.
   units: percent
   Notes: Sets a limit on how full the storage device can be before logging is stopped. If the drive is more than this percent full, no new log files will be created and a warning will be logged every 30 seconds.
-         If this setting is changed while logging is enabled, it will go into effect on the next file that’s created.
+         If this setting is changed while logging is enabled, it will go into effect on the next file that is created.
 
 - group: standalone_logging
   name: output_directory
