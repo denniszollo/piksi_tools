@@ -19,9 +19,9 @@ from piksi_tools import __version__ as VERSION
 
 def get_list_of_columns(msgClass, metadata):
     if metadata:
-        return ['time'] + msgClass.__slots__
+        return ['time', 'sender', 'length'] + msgClass.__slots__
     else:
-        return msgClass.__slots__
+        return ['sender', 'length'] + msgClass.__slots__
 
 
 class MsgExtractor(object):
